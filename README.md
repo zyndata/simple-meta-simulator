@@ -38,6 +38,39 @@ The simulator activates automatically in Play mode when no headset is present. H
 
 Settings are available under the simulator settings window (see the toolbar button added by the Editor assembly).
 
+## Default controls
+
+All keys below are the out-of-the-box defaults. They live in an `InputActionAsset` and can be remapped without touching code.
+
+### Look and move
+
+| Input | Action |
+| --- | --- |
+| Hold **Right Mouse** + move mouse | Look around (yaw / pitch) |
+| **W / A / S / D** | Move the active target forward / left / back / right (relative to head yaw) |
+| **Q / E** | Move the active target down / up |
+
+Movement is routed to the **active move target**. The default hand mode is *Cycle Key*, so **Tab** cycles the target:
+
+**Both** → **Left hand** → **Right hand** → **Head** → **Both** …
+
+- **Both** (default): head and both hands move together; hands stay locked in front of the head.
+- **Head**: only the head moves; hands stay where they are.
+- **Left** / **Right**: only that hand moves.
+
+### Hands (controller buttons)
+
+Grab and grip are **press-to-toggle** (tap once to hold, tap again to release). The four face buttons are **Held** by default (active only while the key is down); this can be switched to **Toggle** in the settings window.
+
+| | Right hand | Left hand |
+| --- | --- | --- |
+| Grab — index trigger | **G** | **V** |
+| Grip — hand trigger | **F** | **C** |
+| Face button A / X | **H** (A) | **B** (X) |
+| Face button B / Y | **J** (B) | **N** (Y) |
+
+Grip (hand trigger) drives ISDK grab selection; the index trigger maps to the ISDK trigger/ray selector.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
