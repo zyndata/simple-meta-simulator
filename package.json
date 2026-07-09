@@ -1,0 +1,23 @@
+{
+	"name": "dev.gorny.sms",
+	"version": "1.0.0",
+	"displayName": "Simple Meta Simulator",
+	"description": "In-editor XR simulator for Meta OVR rigs. Drives head and hands with mouse/keyboard when no headset is present. Editor-only, no build footprint.",
+	"unity": "6000.0",
+	"license": "MIT",
+	"author": {
+		"name": "gorny.dev"
+	},
+	"dependencies": {
+		"com.meta.xr.sdk.core": "77.0.0",
+		"com.unity.inputsystem": "1.14.0"
+	},
+	"keywords": [
+		"xr",
+		"vr",
+		"simulator",
+		"meta",
+		"ovr",
+		"editor"
+	]
+}
