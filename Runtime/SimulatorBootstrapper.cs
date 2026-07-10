@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using UnityEngine;
 
 namespace SMS
@@ -11,6 +12,10 @@ namespace SMS
 	public static class SimulatorBootstrapper
 	{
 		private static InEditorXRSimulator activeInstance;
+
+		private static bool pluginResolved;
+		private static PropertyInfo hmdPresentProperty;
+		private static PropertyInfo userPresentProperty;
 
 		[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
 		private static void Bootstrap ()
@@ -29,6 +34,7 @@ namespace SMS
 
 			if (IsRealHeadsetPresent() == true)
 			{
+				Debug.Log("[SMS] Real headset detected (Quest Link active or headset worn) - simulator will not start.");
 				return;
 			}
 
@@ -38,25 +44,39 @@ namespace SMS
 			activeInstance.Initialize(config, SimulatorConfigProvider.Controls);
 		}
 
-		private static bool IsRealHeadsetPresent ()
+		/// <summary>
+		/// True when a real headset is reachable: hmdPresent covers a headset connected through
+		/// Quest Link even while it sits on the desk; userPresent only turns true while it is
+		/// actually worn. Public so the editor layer (toolbar icon) can show the blocked state.
+		/// Reflection is resolved once; safe to poll.
+		/// </summary>
+		public static bool IsRealHeadsetPresent ()
 		{
-			Type plugin = Type.GetType("OVRPlugin, Oculus.VR");
-
-			if (plugin == null)
+			if (pluginResolved == false)
 			{
-				return false;
+				pluginResolved = true;
+				Type plugin = Type.GetType("OVRPlugin, Oculus.VR");
+
+				if (plugin != null)
+				{
+					hmdPresentProperty = plugin.GetProperty("hmdPresent");
+					userPresentProperty = plugin.GetProperty("userPresent");
+				}
 			}
 
-			var prop = plugin.GetProperty("userPresent");
+			return ReadBoolProperty(hmdPresentProperty) == true || ReadBoolProperty(userPresentProperty) == true;
+		}
 
-			if (prop == null)
+		private static bool ReadBoolProperty (PropertyInfo property)
+		{
+			if (property == null)
 			{
 				return false;
 			}
 
 			try
 			{
-				object value = prop.GetValue(null);
+				object value = property.GetValue(null);
 				return value is bool present && present == true;
 			}
 			catch

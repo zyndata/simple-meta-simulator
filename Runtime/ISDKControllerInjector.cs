@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Reflection;
 using UnityEngine;
 
@@ -42,8 +41,7 @@ namespace SMS
 		private FieldInfo triggerField;
 		private FieldInfo gripField;
 		private Type buttonUsageType;
-		private int gripButtonValue;
-		private int triggerButtonValue;
+		private object[] boxedUsageMasks;
 		private FieldInfo poseFieldPosition;
 		private FieldInfo poseFieldRotation;
 		private object boxedPoseOrigin;
@@ -461,21 +459,21 @@ namespace SMS
 
 			object input = inputField.GetValue(asset);
 
-			int maskValue = 0;
+			int maskIndex = 0;
 
 			if (grip > 0.5f)
 			{
-				maskValue |= gripButtonValue;
+				maskIndex |= 1;
 			}
 
 			if (trigger > 0.5f)
 			{
-				maskValue |= triggerButtonValue;
+				maskIndex |= 2;
 			}
 
-			if (buttonUsageType != null)
+			if (boxedUsageMasks != null)
 			{
-				buttonUsageMaskField.SetValue(input, Enum.ToObject(buttonUsageType, maskValue));
+				buttonUsageMaskField.SetValue(input, boxedUsageMasks[maskIndex]);
 			}
 
 			if (triggerField != null)
@@ -595,8 +593,15 @@ namespace SMS
 
 				if (buttonUsageType != null)
 				{
-					gripButtonValue = Convert.ToInt32(Enum.Parse(buttonUsageType, "GripButton"));
-					triggerButtonValue = Convert.ToInt32(Enum.Parse(buttonUsageType, "TriggerButton"));
+					// Precache the four possible boxed masks (indexed by grip bit 1 | trigger bit 2)
+					// so WriteInput does not call Enum.ToObject (an allocation) per hand per frame.
+					int gripButtonValue = Convert.ToInt32(Enum.Parse(buttonUsageType, "GripButton"));
+					int triggerButtonValue = Convert.ToInt32(Enum.Parse(buttonUsageType, "TriggerButton"));
+					boxedUsageMasks = new object[4];
+					boxedUsageMasks[0] = Enum.ToObject(buttonUsageType, 0);
+					boxedUsageMasks[1] = Enum.ToObject(buttonUsageType, gripButtonValue);
+					boxedUsageMasks[2] = Enum.ToObject(buttonUsageType, triggerButtonValue);
+					boxedUsageMasks[3] = Enum.ToObject(buttonUsageType, gripButtonValue | triggerButtonValue);
 				}
 			}
 

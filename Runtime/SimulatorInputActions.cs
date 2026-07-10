@@ -19,10 +19,6 @@ namespace SMS
 		private InputAction verticalAction;
 		private InputAction lookDeltaAction;
 		private InputAction lookModifierAction;
-		private InputAction handPlanarAction;
-		private InputAction handDepthAction;
-		private InputAction leftHandModifierAction;
-		private InputAction rightHandModifierAction;
 		private InputAction cycleAction;
 		private InputAction leftGrabAction;
 		private InputAction leftGripAction;
@@ -77,26 +73,6 @@ namespace SMS
 			return lookModifierAction != null && lookModifierAction.IsPressed();
 		}
 
-		public Vector2 HandPlanar ()
-		{
-			return handPlanarAction != null ? handPlanarAction.ReadValue<Vector2>() : Vector2.zero;
-		}
-
-		public float HandDepth ()
-		{
-			return handDepthAction != null ? handDepthAction.ReadValue<float>() : 0f;
-		}
-
-		public bool LeftHandModifier ()
-		{
-			return leftHandModifierAction != null && leftHandModifierAction.IsPressed();
-		}
-
-		public bool RightHandModifier ()
-		{
-			return rightHandModifierAction != null && rightHandModifierAction.IsPressed();
-		}
-
 		public bool CyclePressed ()
 		{
 			return cycleAction != null && cycleAction.WasPressedThisFrame();
@@ -120,26 +96,6 @@ namespace SMS
 		public bool RightGrip ()
 		{
 			return rightGripAction != null && rightGripAction.IsPressed();
-		}
-
-		public bool LeftGrabPressed ()
-		{
-			return leftGrabAction != null && leftGrabAction.WasPressedThisFrame();
-		}
-
-		public bool LeftGripPressed ()
-		{
-			return leftGripAction != null && leftGripAction.WasPressedThisFrame();
-		}
-
-		public bool RightGrabPressed ()
-		{
-			return rightGrabAction != null && rightGrabAction.WasPressedThisFrame();
-		}
-
-		public bool RightGripPressed ()
-		{
-			return rightGripAction != null && rightGripAction.WasPressedThisFrame();
 		}
 
 		public bool LeftPrimary ()
@@ -175,10 +131,6 @@ namespace SMS
 			verticalAction = map.FindAction("Vertical", false);
 			lookDeltaAction = map.FindAction("LookDelta", false);
 			lookModifierAction = map.FindAction("LookModifier", false);
-			handPlanarAction = map.FindAction("HandPlanar", false);
-			handDepthAction = map.FindAction("HandDepth", false);
-			leftHandModifierAction = map.FindAction("LeftHandModifier", false);
-			rightHandModifierAction = map.FindAction("RightHandModifier", false);
 			cycleAction = map.FindAction("Cycle", false);
 			leftGrabAction = map.FindAction("LeftGrab", false);
 			leftGripAction = map.FindAction("LeftGrip", false);
@@ -207,23 +159,9 @@ namespace SMS
 				.With("Negative", "<Keyboard>/q")
 				.With("Positive", "<Keyboard>/e");
 
-			InputAction lookDelta = map.AddAction("LookDelta", InputActionType.Value, "<Mouse>/delta");
-			InputAction lookModifier = map.AddAction("LookModifier", InputActionType.Button, "<Mouse>/rightButton");
+			map.AddAction("LookDelta", InputActionType.Value, "<Mouse>/delta");
+			map.AddAction("LookModifier", InputActionType.Button, "<Mouse>/rightButton");
 
-			InputAction handPlanar = map.AddAction("HandPlanar", InputActionType.Value);
-			handPlanar.AddCompositeBinding("2DVector")
-				.With("Up", "<Keyboard>/upArrow")
-				.With("Down", "<Keyboard>/downArrow")
-				.With("Left", "<Keyboard>/leftArrow")
-				.With("Right", "<Keyboard>/rightArrow");
-
-			InputAction handDepth = map.AddAction("HandDepth", InputActionType.Value);
-			handDepth.AddCompositeBinding("1DAxis")
-				.With("Negative", "<Keyboard>/pageDown")
-				.With("Positive", "<Keyboard>/pageUp");
-
-			map.AddAction("LeftHandModifier", InputActionType.Button, "<Keyboard>/leftShift");
-			map.AddAction("RightHandModifier", InputActionType.Button, "<Keyboard>/rightShift");
 			map.AddAction("Cycle", InputActionType.Button, "<Keyboard>/tab");
 
 			map.AddAction("RightGrab", InputActionType.Button, "<Keyboard>/g");

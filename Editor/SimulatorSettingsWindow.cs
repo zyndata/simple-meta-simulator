@@ -72,9 +72,9 @@ namespace SMS.Editor
 
 			if (movementFoldout == true)
 			{
-				SetFloat(config, "moveSpeed", EditorGUILayout.FloatField("Move Speed", GetFloat(config, "moveSpeed")));
-				SetFloat(config, "verticalSpeed", EditorGUILayout.FloatField("Vertical Speed", GetFloat(config, "verticalSpeed")));
-				SetFloat(config, "startingEyeHeight", EditorGUILayout.FloatField("Starting Eye Height", GetFloat(config, "startingEyeHeight")));
+				config.MoveSpeed = EditorGUILayout.FloatField("Move Speed", config.MoveSpeed);
+				config.VerticalSpeed = EditorGUILayout.FloatField("Vertical Speed", config.VerticalSpeed);
+				config.StartingEyeHeight = EditorGUILayout.FloatField("Starting Eye Height", config.StartingEyeHeight);
 			}
 
 			EditorGUILayout.Space();
@@ -86,8 +86,8 @@ namespace SMS.Editor
 
 			if (lookFoldout == true)
 			{
-				SetFloat(config, "lookSensitivity", EditorGUILayout.FloatField("Look Sensitivity", GetFloat(config, "lookSensitivity")));
-				SetBool(config, "invertLookY", EditorGUILayout.Toggle("Invert Look Y", GetBool(config, "invertLookY")));
+				config.LookSensitivity = EditorGUILayout.FloatField("Look Sensitivity", config.LookSensitivity);
+				config.InvertLookY = EditorGUILayout.Toggle("Invert Look Y", config.InvertLookY);
 			}
 
 			EditorGUILayout.Space();
@@ -107,10 +107,9 @@ namespace SMS.Editor
 
 			if (handsFoldout == true)
 			{
-				SetFloat(config, "handMoveSpeed", EditorGUILayout.FloatField("Hand Move Speed", GetFloat(config, "handMoveSpeed")));
-				SetFloat(config, "handDepthSpeed", EditorGUILayout.FloatField("Hand Depth Speed", GetFloat(config, "handDepthSpeed")));
-				SetFaceButtonMode(config, (ButtonInputMode)EditorGUILayout.EnumPopup("Face Button Mode", config.FaceButtonInputMode));
-				EditorGUILayout.HelpBox("Held: X/Y/A/B are pressed only while their key is held. Toggle: each key press latches the button until pressed again.", MessageType.None);
+				config.GrabGripInputMode = (ButtonInputMode)EditorGUILayout.EnumPopup("Grab/Grip Mode", config.GrabGripInputMode);
+				config.FaceButtonInputMode = (ButtonInputMode)EditorGUILayout.EnumPopup("Face Button Mode", config.FaceButtonInputMode);
+				EditorGUILayout.HelpBox("Held: the input is active only while its key is held. Toggle: each key press latches it until pressed again. Grab/Grip covers the index and hand triggers; Face Button covers X/Y/A/B.", MessageType.None);
 			}
 
 			EditorGUILayout.Space();
@@ -122,10 +121,10 @@ namespace SMS.Editor
 
 			if (eventsFoldout == true)
 			{
-				SetBool(config, "raiseHmdMountedEvents", EditorGUILayout.Toggle("HMD Mounted / Unmounted", GetBool(config, "raiseHmdMountedEvents")));
-				SetBool(config, "raiseInputFocusEvents", EditorGUILayout.Toggle("Input Focus", GetBool(config, "raiseInputFocusEvents")));
-				SetBool(config, "raiseTrackingEvents", EditorGUILayout.Toggle("Tracking", GetBool(config, "raiseTrackingEvents")));
-				SetBool(config, "raiseHmdAcquiredEvents", EditorGUILayout.Toggle("HMD Acquired / Lost", GetBool(config, "raiseHmdAcquiredEvents")));
+				config.RaiseHmdMountedEvents = EditorGUILayout.Toggle("HMD Mounted / Unmounted", config.RaiseHmdMountedEvents);
+				config.RaiseInputFocusEvents = EditorGUILayout.Toggle("Input Focus", config.RaiseInputFocusEvents);
+				config.RaiseTrackingEvents = EditorGUILayout.Toggle("Tracking", config.RaiseTrackingEvents);
+				config.RaiseHmdAcquiredEvents = EditorGUILayout.Toggle("HMD Acquired / Lost", config.RaiseHmdAcquiredEvents);
 			}
 
 			EditorGUILayout.Space();
@@ -230,56 +229,5 @@ namespace SMS.Editor
 			Repaint();
 		}
 
-		private static float GetFloat (SimulatorConfig config, string field)
-		{
-			var f = typeof(SimulatorConfig).GetField(field, (System.Reflection.BindingFlags)(0x4 | 0x20));
-			return f != null ? (float)f.GetValue(config) : 0f;
-		}
-
-		private static void SetFloat (SimulatorConfig config, string field, float value)
-		{
-			var f = typeof(SimulatorConfig).GetField(field, (System.Reflection.BindingFlags)(0x4 | 0x20));
-
-			if (f != null)
-			{
-				f.SetValue(config, value);
-			}
-		}
-
-		private static bool GetBool (SimulatorConfig config, string field)
-		{
-			var f = typeof(SimulatorConfig).GetField(field, (System.Reflection.BindingFlags)(0x4 | 0x20));
-			return f != null && (bool)f.GetValue(config);
-		}
-
-		private static void SetBool (SimulatorConfig config, string field, bool value)
-		{
-			var f = typeof(SimulatorConfig).GetField(field, (System.Reflection.BindingFlags)(0x4 | 0x20));
-
-			if (f != null)
-			{
-				f.SetValue(config, value);
-			}
-		}
-
-		private static void SetHandMode (SimulatorConfig config, HandActivationMode value)
-		{
-			var f = typeof(SimulatorConfig).GetField("handActivationMode", (System.Reflection.BindingFlags)(0x4 | 0x20));
-
-			if (f != null)
-			{
-				f.SetValue(config, value);
-			}
-		}
-
-		private static void SetFaceButtonMode (SimulatorConfig config, ButtonInputMode value)
-		{
-			var f = typeof(SimulatorConfig).GetField("faceButtonInputMode", (System.Reflection.BindingFlags)(0x4 | 0x20));
-
-			if (f != null)
-			{
-				f.SetValue(config, value);
-			}
-		}
 	}
 }

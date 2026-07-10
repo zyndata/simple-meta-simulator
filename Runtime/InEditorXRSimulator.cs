@@ -14,7 +14,7 @@ namespace SMS
 	[DefaultExecutionOrder(-50)]
 	public class InEditorXRSimulator : MonoBehaviour
 	{
-		private const float DEFAULT_EYE_HEIGHT = 1.6f;
+		private const float REBIND_SCAN_INTERVAL = 0.5f;
 
 		private SimulatorConfig config;
 		private SimulatedRigState state;
@@ -32,6 +32,7 @@ namespace SMS
 		private Transform rightControllerAnchor;
 
 		private bool eventsRaised;
+		private float nextBindScanTime;
 		private Vector2 headEuler;
 		private ActiveMoveTarget cycleTarget = ActiveMoveTarget.Both;
 
@@ -63,7 +64,7 @@ namespace SMS
 
 		public static InEditorXRSimulator Active { get; private set; }
 
-		public string CurrentCycleTargetName => cycleTarget.ToString();
+		public string CurrentCycleTargetName => GetTargetName(cycleTarget);
 
 		public void Initialize (SimulatorConfig simulatorConfig, InputActionAsset controls)
 		{
@@ -90,9 +91,9 @@ namespace SMS
 				actions.Disable();
 			}
 
-			UnhookAnchors();
-
-			if (eventInvoker != null)
+			// Only announce a disconnect if the connected sequence actually fired; otherwise
+			// subscribers would see HMDUnmounted etc. for a session that never "mounted".
+			if (eventInvoker != null && eventsRaised == true)
 			{
 				eventInvoker.RaiseDisconnectedSequence(config);
 			}
@@ -102,7 +103,14 @@ namespace SMS
 		{
 			if (IsRigBound() == false)
 			{
-				TryBindRig();
+				// FindFirstObjectByType is a scene-wide scan; do not pay for it every frame while
+				// waiting for a rig to appear (e.g. rig-less menu scenes).
+				if (Time.unscaledTime >= nextBindScanTime)
+				{
+					nextBindScanTime = Time.unscaledTime + REBIND_SCAN_INTERVAL;
+					TryBindRig();
+				}
+
 				return;
 			}
 
@@ -141,7 +149,6 @@ namespace SMS
 			cameraRig = found;
 			eventsRaised = false;
 			CacheAnchors(rigType, found);
-			HookAnchors(rigType, found);
 			state.ResetToDefault(config.StartingEyeHeight);
 			headEuler = Vector2.zero;
 			headYaw = 0f;
@@ -164,14 +171,6 @@ namespace SMS
 			rightHandAnchor = GetAnchor(rigType, rig, "rightHandAnchor");
 			leftControllerAnchor = GetAnchor(rigType, rig, "leftControllerAnchor");
 			rightControllerAnchor = GetAnchor(rigType, rig, "rightControllerAnchor");
-		}
-
-		private void HookAnchors (Type rigType, UnityEngine.Object rig)
-		{
-		}
-
-		private void UnhookAnchors ()
-		{
 		}
 
 		private void LateUpdate ()
@@ -315,54 +314,27 @@ namespace SMS
 
 		private void UpdateHandInput ()
 		{
-			bool leftGrabDown = actions.LeftGrab();
-			bool leftGripDown = actions.LeftGrip();
-			bool rightGrabDown = actions.RightGrab();
-			bool rightGripDown = actions.RightGrip();
-
-			if (leftGrabDown == true && leftGrabWasDown == false)
-			{
-				leftGrabHeld = leftGrabHeld == false;
-			}
-
-			if (leftGripDown == true && leftGripWasDown == false)
-			{
-				leftGripHeld = leftGripHeld == false;
-			}
-
-			if (rightGrabDown == true && rightGrabWasDown == false)
-			{
-				rightGrabHeld = rightGrabHeld == false;
-			}
-
-			if (rightGripDown == true && rightGripWasDown == false)
-			{
-				rightGripHeld = rightGripHeld == false;
-			}
-
-			leftGrabWasDown = leftGrabDown;
-			leftGripWasDown = leftGripDown;
-			rightGrabWasDown = rightGrabDown;
-			rightGripWasDown = rightGripDown;
+			ButtonInputMode grabGripMode = config.GrabGripInputMode;
+			ButtonInputMode faceButtonMode = config.FaceButtonInputMode;
 
 			HandInputState left = state.LeftInput;
-			left.IndexTrigger = leftGrabHeld == true ? 1f : 0f;
-			left.HandTrigger = leftGripHeld == true ? 1f : 0f;
-			left.PrimaryButton = ResolveButton(actions.LeftPrimary(), ref leftPrimaryHeld, ref leftPrimaryWasDown);
-			left.SecondaryButton = ResolveButton(actions.LeftSecondary(), ref leftSecondaryHeld, ref leftSecondaryWasDown);
+			left.IndexTrigger = ResolveButton(actions.LeftGrab(), grabGripMode, ref leftGrabHeld, ref leftGrabWasDown) == true ? 1f : 0f;
+			left.HandTrigger = ResolveButton(actions.LeftGrip(), grabGripMode, ref leftGripHeld, ref leftGripWasDown) == true ? 1f : 0f;
+			left.PrimaryButton = ResolveButton(actions.LeftPrimary(), faceButtonMode, ref leftPrimaryHeld, ref leftPrimaryWasDown);
+			left.SecondaryButton = ResolveButton(actions.LeftSecondary(), faceButtonMode, ref leftSecondaryHeld, ref leftSecondaryWasDown);
 			state.LeftInput = left;
 
 			HandInputState right = state.RightInput;
-			right.IndexTrigger = rightGrabHeld == true ? 1f : 0f;
-			right.HandTrigger = rightGripHeld == true ? 1f : 0f;
-			right.PrimaryButton = ResolveButton(actions.RightPrimary(), ref rightPrimaryHeld, ref rightPrimaryWasDown);
-			right.SecondaryButton = ResolveButton(actions.RightSecondary(), ref rightSecondaryHeld, ref rightSecondaryWasDown);
+			right.IndexTrigger = ResolveButton(actions.RightGrab(), grabGripMode, ref rightGrabHeld, ref rightGrabWasDown) == true ? 1f : 0f;
+			right.HandTrigger = ResolveButton(actions.RightGrip(), grabGripMode, ref rightGripHeld, ref rightGripWasDown) == true ? 1f : 0f;
+			right.PrimaryButton = ResolveButton(actions.RightPrimary(), faceButtonMode, ref rightPrimaryHeld, ref rightPrimaryWasDown);
+			right.SecondaryButton = ResolveButton(actions.RightSecondary(), faceButtonMode, ref rightSecondaryHeld, ref rightSecondaryWasDown);
 			state.RightInput = right;
 		}
 
-		private bool ResolveButton (bool isDown, ref bool held, ref bool wasDown)
+		private bool ResolveButton (bool isDown, ButtonInputMode mode, ref bool held, ref bool wasDown)
 		{
-			if (config.FaceButtonInputMode == ButtonInputMode.Toggle)
+			if (mode == ButtonInputMode.Toggle)
 			{
 				if (isDown == true && wasDown == false)
 				{
@@ -415,6 +387,26 @@ namespace SMS
 				controllerAnchor.localPosition = Vector3.zero;
 				controllerAnchor.localRotation = Quaternion.identity;
 			}
+		}
+
+		private static string GetTargetName (ActiveMoveTarget target)
+		{
+			if (target == ActiveMoveTarget.Head)
+			{
+				return "Head";
+			}
+
+			if (target == ActiveMoveTarget.Left)
+			{
+				return "Left";
+			}
+
+			if (target == ActiveMoveTarget.Right)
+			{
+				return "Right";
+			}
+
+			return "Both";
 		}
 
 		private Transform GetAnchor (Type rigType, UnityEngine.Object rig, string propertyName)

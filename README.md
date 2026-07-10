@@ -36,7 +36,17 @@ Pin to a tag (`#1.0.0`) rather than a branch — UPM caches by commit hash, so a
 
 The simulator activates automatically in Play mode when no headset is present. Head and hand poses are driven from mouse and keyboard; controller button state is injected into `OVRInput` so ISDK grab interactions respond as they would on device.
 
-Settings are available under the simulator settings window (see the toolbar button added by the Editor assembly).
+Settings are available under the simulator settings window, opened by clicking the status light the package adds to the main toolbar (next to the Play buttons):
+
+| Toolbar icon | Meaning |
+| --- | --- |
+| ⚫ Off | Simulator disabled. Play mode uses whatever runtime is available. |
+| 🟢 Green | Simulator enabled. Play mode starts the in-editor simulator. |
+| 🟠 Orange | Simulator enabled, **but a real headset is detected** (Quest Link connected or headset worn) - the simulator yields and the real device drives the rig. |
+
+### Quest Link
+
+When a headset is reachable - `OVRPlugin.hmdPresent` (connected through Quest Link, even sitting on the desk) or `OVRPlugin.userPresent` (worn) - the simulator does not start, so the real controllers and HMD keep control of the rig. No setting change is needed when switching between Link and simulated iteration; the toolbar light turns orange to show the simulator is being bypassed.
 
 ## Default controls
 
@@ -60,7 +70,10 @@ Movement is routed to the **active move target**. The default hand mode is *Cycl
 
 ### Hands (controller buttons)
 
-Grab and grip are **press-to-toggle** (tap once to hold, tap again to release). The four face buttons are **Held** by default (active only while the key is down); this can be switched to **Toggle** in the settings window.
+Both button groups have a configurable input mode in the settings window (*Hands* section):
+
+- **Grab/Grip Mode** — index + hand triggers. Default **Toggle**: tap once to hold, tap again to release.
+- **Face Button Mode** — X/Y/A/B. Default **Held**: active only while the key is down.
 
 | | Right hand | Left hand |
 | --- | --- | --- |
@@ -70,6 +83,12 @@ Grab and grip are **press-to-toggle** (tap once to hold, tap again to release). 
 | Face button B / Y | **J** (B) | **N** (Y) |
 
 Grip (hand trigger) drives ISDK grab selection; the index trigger maps to the ISDK trigger/ray selector.
+
+## Troubleshooting
+
+- **Simulator does not start in Play mode** — check the toolbar light: orange means a real headset/Quest Link session was detected and the simulator deliberately yielded (see the `[SMS]` log line); off means the *Enabled* toggle is off. Also verify the scene contains an `OVRCameraRig`.
+- **Simulator starts but nothing moves** — the rig is searched for repeatedly (every 0.5 s), so a rig spawned later is picked up automatically; if it never binds, confirm the rig really is an `OVRCameraRig` from `com.meta.xr.sdk.core`.
+- **Grab does not release** — grab/grip default to *Toggle*: tap the key again to release, or switch *Grab/Grip Mode* to *Held* in the settings window.
 
 ## License
 

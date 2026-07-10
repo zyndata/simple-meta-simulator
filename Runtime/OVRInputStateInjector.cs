@@ -11,6 +11,9 @@ namespace SMS
 	/// has updated. Because the Meta Interaction SDK and everything else read controller
 	/// state through OVRInput.Get(...), writing here makes them all respond to the simulator without
 	/// any direct reference to those systems. All access is reflection-based and cached once.
+	/// Writes are skipped once previousState == currentState == the simulated input, so steady-state
+	/// frames (no key changes) allocate nothing; the skip keeps GetDown/GetUp edges intact because
+	/// a change is always written twice (once to move currentState, once to move previousState).
 	/// </summary>
 	public class OVRInputStateInjector
 	{
@@ -46,13 +49,14 @@ namespace SMS
 		private FieldInfo lThumbstickField;
 		private FieldInfo rThumbstickField;
 
-		private object lTouchValue;
-		private object rTouchValue;
 		private int lTouchInt;
 		private int rTouchInt;
 		private Type vector2fType;
 		private FieldInfo vec2xField;
 		private FieldInfo vec2yField;
+
+		private readonly HandChannel leftChannel = new HandChannel();
+		private readonly HandChannel rightChannel = new HandChannel();
 
 		public void Inject (SimulatedRigState state)
 		{
@@ -71,6 +75,11 @@ namespace SMS
 				return;
 			}
 
+			if (leftChannel.Controller == null || rightChannel.Controller == null)
+			{
+				ResolveControllers();
+			}
+
 			if (activeControllerTypeField != null && touchControllerValue != null)
 			{
 				activeControllerTypeField.SetValue(null, touchControllerValue);
@@ -81,6 +90,12 @@ namespace SMS
 				connectedControllerTypesField.SetValue(null, touchControllerValue);
 			}
 
+			WriteState(leftChannel, state.LeftInput, true);
+			WriteState(rightChannel, state.RightInput, false);
+		}
+
+		private void ResolveControllers ()
+		{
 			for (int i = 0; i < controllersList.Count; i++)
 			{
 				object controller = controllersList[i];
@@ -94,23 +109,41 @@ namespace SMS
 
 				if (typeInt == lTouchInt)
 				{
-					WriteState(controller, state.LeftInput, true);
+					leftChannel.Controller = controller;
 				}
 				else if (typeInt == rTouchInt)
 				{
-					WriteState(controller, state.RightInput, false);
+					rightChannel.Controller = controller;
 				}
 			}
 		}
 
-		private void WriteState (object controller, HandInputState input, bool isLeft)
+		private void WriteState (HandChannel channel, HandInputState input, bool isLeft)
 		{
-			if (previousStateField != null)
+			if (channel.Controller == null)
 			{
-				previousStateField.SetValue(controller, currentStateField.GetValue(controller));
+				return;
 			}
 
-			object boxedState = currentStateField.GetValue(controller);
+			// Steady state: previousState == currentState == input, nothing to move. Without the
+			// native runtime OVRInput.Update does not touch these fields, so the skip is safe.
+			if (channel.HasWritten == true && channel.LastInputStable == true && InputEquals(input, channel.LastInput) == true)
+			{
+				return;
+			}
+
+			if (channel.StateBox == null)
+			{
+				// Seed the reusable box from the controller's real state once; afterwards the box
+				// always mirrors what currentState holds, so no per-frame GetValue boxing is needed.
+				channel.StateBox = currentStateField.GetValue(channel.Controller);
+			}
+
+			if (previousStateField != null)
+			{
+				previousStateField.SetValue(channel.Controller, channel.StateBox);
+			}
+
 			uint buttons = 0;
 
 			if (isLeft == true)
@@ -135,9 +168,9 @@ namespace SMS
 					buttons |= BTN_Y;
 				}
 
-				lIndexTriggerField.SetValue(boxedState, input.IndexTrigger);
-				lHandTriggerField.SetValue(boxedState, input.HandTrigger);
-				WriteThumbstick(boxedState, lThumbstickField, input.Thumbstick);
+				lIndexTriggerField.SetValue(channel.StateBox, input.IndexTrigger);
+				lHandTriggerField.SetValue(channel.StateBox, input.HandTrigger);
+				WriteThumbstick(channel, lThumbstickField, input.Thumbstick);
 			}
 			else
 			{
@@ -161,46 +194,58 @@ namespace SMS
 					buttons |= BTN_B;
 				}
 
-				rIndexTriggerField.SetValue(boxedState, input.IndexTrigger);
-				rHandTriggerField.SetValue(boxedState, input.HandTrigger);
-				WriteThumbstick(boxedState, rThumbstickField, input.Thumbstick);
+				rIndexTriggerField.SetValue(channel.StateBox, input.IndexTrigger);
+				rHandTriggerField.SetValue(channel.StateBox, input.HandTrigger);
+				WriteThumbstick(channel, rThumbstickField, input.Thumbstick);
 			}
 
-			buttonsField.SetValue(boxedState, buttons);
+			buttonsField.SetValue(channel.StateBox, buttons);
 
 			if (connectedField != null)
 			{
-				connectedField.SetValue(boxedState, (uint)CONNECTED_TOUCH_MASK);
+				connectedField.SetValue(channel.StateBox, (uint)CONNECTED_TOUCH_MASK);
 			}
 
-			currentStateField.SetValue(controller, boxedState);
+			currentStateField.SetValue(channel.Controller, channel.StateBox);
+
+			channel.LastInputStable = channel.HasWritten == true && InputEquals(input, channel.LastInput) == true;
+			channel.LastInput = input;
+			channel.HasWritten = true;
 		}
 
-		private void WriteThumbstick (object boxedState, FieldInfo thumbstickField, Vector2 value)
+		private void WriteThumbstick (HandChannel channel, FieldInfo thumbstickField, Vector2 value)
 		{
 			if (thumbstickField == null || vector2fType == null)
 			{
 				return;
 			}
 
-			object boxedVec = thumbstickField.GetValue(boxedState);
-
-			if (boxedVec == null)
+			if (channel.ThumbBox == null)
 			{
-				boxedVec = Activator.CreateInstance(vector2fType);
+				channel.ThumbBox = Activator.CreateInstance(vector2fType);
 			}
 
 			if (vec2xField != null)
 			{
-				vec2xField.SetValue(boxedVec, value.x);
+				vec2xField.SetValue(channel.ThumbBox, value.x);
 			}
 
 			if (vec2yField != null)
 			{
-				vec2yField.SetValue(boxedVec, value.y);
+				vec2yField.SetValue(channel.ThumbBox, value.y);
 			}
 
-			thumbstickField.SetValue(boxedState, boxedVec);
+			thumbstickField.SetValue(channel.StateBox, channel.ThumbBox);
+		}
+
+		private static bool InputEquals (HandInputState a, HandInputState b)
+		{
+			return a.IndexTrigger == b.IndexTrigger
+				&& a.HandTrigger == b.HandTrigger
+				&& a.PrimaryButton == b.PrimaryButton
+				&& a.SecondaryButton == b.SecondaryButton
+				&& a.ThumbstickButton == b.ThumbstickButton
+				&& a.Thumbstick == b.Thumbstick;
 		}
 
 		private void Resolve ()
@@ -238,10 +283,8 @@ namespace SMS
 				return;
 			}
 
-			lTouchValue = Enum.Parse(controllerEnum, "LTouch");
-			rTouchValue = Enum.Parse(controllerEnum, "RTouch");
-			lTouchInt = Convert.ToInt32(lTouchValue);
-			rTouchInt = Convert.ToInt32(rTouchValue);
+			lTouchInt = Convert.ToInt32(Enum.Parse(controllerEnum, "LTouch"));
+			rTouchInt = Convert.ToInt32(Enum.Parse(controllerEnum, "RTouch"));
 			touchControllerValue = Enum.Parse(controllerEnum, "Touch");
 			activeControllerTypeField = ovrInput.GetField("activeControllerType", all);
 			connectedControllerTypesField = ovrInput.GetField("connectedControllerTypes", all);
@@ -267,6 +310,20 @@ namespace SMS
 			{
 				resolveFailed = true;
 			}
+		}
+
+		/// <summary>
+		/// Per-hand injection state: the resolved OVRControllerBase, the reusable boxed
+		/// ControllerState / thumbstick vector, and the last written input for the steady-state skip.
+		/// </summary>
+		private class HandChannel
+		{
+			public object Controller;
+			public object StateBox;
+			public object ThumbBox;
+			public HandInputState LastInput;
+			public bool LastInputStable;
+			public bool HasWritten;
 		}
 	}
 }

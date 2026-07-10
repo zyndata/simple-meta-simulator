@@ -19,6 +19,7 @@ namespace SMS.Editor
 		private const string TOOLBAR_WINDOW_TYPE = "UnityEditor.MainToolbarWindow";
 
 		private const string ACTIVE_ICON = "greenLight";
+		private const string BLOCKED_ICON = "orangeLight";
 		private const string INACTIVE_ICON = "lightOff";
 		private const float ICON_SIZE = 16f;
 
@@ -26,7 +27,7 @@ namespace SMS.Editor
 
 		private static EditorToolbarButton button;
 		private static double nextRefreshTime;
-		private static bool lastKnownState;
+		private static ToolbarState lastKnownState;
 		private static bool hasCachedState;
 
 		static SimulatorToolbarButton ()
@@ -50,16 +51,31 @@ namespace SMS.Editor
 				return;
 			}
 
-			bool active = SimulatorSettings.IsEnabled();
+			ToolbarState state = ResolveState();
 
-			if (hasCachedState == true && active == lastKnownState)
+			if (hasCachedState == true && state == lastKnownState)
 			{
 				return;
 			}
 
-			lastKnownState = active;
+			lastKnownState = state;
 			hasCachedState = true;
-			ApplyVisualState(active);
+			ApplyVisualState(state);
+		}
+
+		private static ToolbarState ResolveState ()
+		{
+			if (SimulatorSettings.IsEnabled() == false)
+			{
+				return ToolbarState.Disabled;
+			}
+
+			if (SimulatorBootstrapper.IsRealHeadsetPresent() == true)
+			{
+				return ToolbarState.Blocked;
+			}
+
+			return ToolbarState.Enabled;
 		}
 
 		private static void EnsureInjected ()
@@ -113,7 +129,7 @@ namespace SMS.Editor
 			}
 
 			hasCachedState = false;
-			ApplyVisualState(SimulatorSettings.IsEnabled());
+			ApplyVisualState(ResolveState());
 		}
 
 		private static EditorToolbarButton CreateButton ()
@@ -147,14 +163,19 @@ namespace SMS.Editor
 			SimulatorSettingsWindow.Open();
 		}
 
-		private static void ApplyVisualState (bool active)
+		private static void ApplyVisualState (ToolbarState state)
 		{
 			if (button == null)
 			{
 				return;
 			}
 
-			if (active == true)
+			if (state == ToolbarState.Blocked)
+			{
+				button.icon = EditorGUIUtility.IconContent(BLOCKED_ICON).image as Texture2D;
+				button.tooltip = "Simple Meta Simulator: ENABLED, but a real headset (Quest Link) is detected - the simulator will not start.";
+			}
+			else if (state == ToolbarState.Enabled)
 			{
 				button.icon = EditorGUIUtility.IconContent(ACTIVE_ICON).image as Texture2D;
 				button.tooltip = "Simple Meta Simulator: ENABLED";
@@ -166,6 +187,13 @@ namespace SMS.Editor
 			}
 
 			ApplyIconSize(button);
+		}
+
+		private enum ToolbarState
+		{
+			Disabled = 0,
+			Enabled = 1,
+			Blocked = 2
 		}
 
 		private static EditorWindow FindToolbarWindow ()

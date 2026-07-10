@@ -34,16 +34,13 @@ namespace SMS
 
 		[Header(SimulatorConstants.HEADER_HANDS)]
 		[SerializeField]
-		private float handMoveSpeed = 0.6f;
-
-		[SerializeField]
-		private float handDepthSpeed = 0.4f;
-
-		[SerializeField]
 		private HandActivationMode handActivationMode = HandActivationMode.CycleKey;
 
 		[SerializeField]
 		private ButtonInputMode faceButtonInputMode = ButtonInputMode.Held;
+
+		[SerializeField]
+		private ButtonInputMode grabGripInputMode = ButtonInputMode.Toggle;
 
 		[Header(SimulatorConstants.HEADER_EVENTS)]
 		[SerializeField]
@@ -59,18 +56,17 @@ namespace SMS
 		private bool raiseHmdAcquiredEvents = true;
 
 		public bool Enabled { get => enabled; set => enabled = value; }
-		public float MoveSpeed => moveSpeed;
-		public float VerticalSpeed => verticalSpeed;
-		public float StartingEyeHeight => startingEyeHeight;
-		public float LookSensitivity => lookSensitivity;
-		public bool InvertLookY => invertLookY;
-		public float HandMoveSpeed => handMoveSpeed;
-		public float HandDepthSpeed => handDepthSpeed;
-		public HandActivationMode HandActivationMode => handActivationMode;
-		public ButtonInputMode FaceButtonInputMode => faceButtonInputMode;
-		public bool RaiseHmdMountedEvents => raiseHmdMountedEvents;
-		public bool RaiseInputFocusEvents => raiseInputFocusEvents;
-		public bool RaiseTrackingEvents => raiseTrackingEvents;
-		public bool RaiseHmdAcquiredEvents => raiseHmdAcquiredEvents;
+		public float MoveSpeed { get => moveSpeed; set => moveSpeed = value; }
+		public float VerticalSpeed { get => verticalSpeed; set => verticalSpeed = value; }
+		public float StartingEyeHeight { get => startingEyeHeight; set => startingEyeHeight = value; }
+		public float LookSensitivity { get => lookSensitivity; set => lookSensitivity = value; }
+		public bool InvertLookY { get => invertLookY; set => invertLookY = value; }
+		public HandActivationMode HandActivationMode { get => handActivationMode; set => handActivationMode = value; }
+		public ButtonInputMode FaceButtonInputMode { get => faceButtonInputMode; set => faceButtonInputMode = value; }
+		public ButtonInputMode GrabGripInputMode { get => grabGripInputMode; set => grabGripInputMode = value; }
+		public bool RaiseHmdMountedEvents { get => raiseHmdMountedEvents; set => raiseHmdMountedEvents = value; }
+		public bool RaiseInputFocusEvents { get => raiseInputFocusEvents; set => raiseInputFocusEvents = value; }
+		public bool RaiseTrackingEvents { get => raiseTrackingEvents; set => raiseTrackingEvents = value; }
+		public bool RaiseHmdAcquiredEvents { get => raiseHmdAcquiredEvents; set => raiseHmdAcquiredEvents = value; }
 	}
 }
