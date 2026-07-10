@@ -21,13 +21,13 @@ Both are declared as package `dependencies` and will be resolved by UPM. Meta XR
 Add the package to the target project's `Packages/manifest.json`, pinned to a tag:
 
 ```json
-"dev.gorny.sms": "https://github.com/zyndata/simple-meta-simulator.git#1.0.0"
+"dev.gorny.sms": "https://github.com/zyndata/simple-meta-simulator.git#1.1.0"
 ```
 
 Or via **Window > Package Manager > + > Install package from git URL**:
 
 ```
-https://github.com/zyndata/simple-meta-simulator.git#1.0.0
+https://github.com/zyndata/simple-meta-simulator.git#1.1.0
 ```
 
 Pin to a tag (`#1.0.0`) rather than a branch — UPM caches by commit hash, so a moving branch makes updates unpredictable.
