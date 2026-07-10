@@ -30,7 +30,7 @@ Or via **Window > Package Manager > + > Install package from git URL**:
 https://github.com/zyndata/simple-meta-simulator.git#1.1.0
 ```
 
-Pin to a tag (`#1.0.0`) rather than a branch — UPM caches by commit hash, so a moving branch makes updates unpredictable.
+Pin to a tag (e.g. `#1.1.0`) rather than a branch — UPM caches by commit hash, so a moving branch makes updates unpredictable.
 
 ## Usage
 
