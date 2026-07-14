@@ -16,21 +16,36 @@ Editor-only — the runtime assembly is gated behind `UNITY_EDITOR` and produces
 
 Both are declared as package `dependencies` and will be resolved by UPM. Meta XR SDK must be reachable from the target project (it is not on a public registry that UPM queries by default — if your project does not already have it, install it first).
 
+### Tested against
+
+Verified on both the Autohand rig and the Meta Building Blocks rig (`OVRComprehensiveInteractionRig`) with:
+
+| Package | Version |
+| --- | --- |
+| Unity | 6000.3.13f1 |
+| `com.meta.xr.sdk.core` | 203.0.0 |
+| `com.meta.xr.sdk.interaction.ovr` | 203.0.0 |
+| `com.meta.xr.mrutilitykit` | 203.0.0 |
+| `com.unity.xr.interaction.toolkit` | 3.3.2 |
+| `com.unity.xr.meta-openxr` | 2.5.1 |
+| `com.unity.xr.openxr` | 1.16.1 |
+| `com.unity.inputsystem` | 1.19.0 |
+
 ## Installation
 
 Add the package to the target project's `Packages/manifest.json`, pinned to a tag:
 
 ```json
-"dev.gorny.sms": "https://github.com/zyndata/simple-meta-simulator.git#1.1.0"
+"dev.gorny.sms": "https://github.com/zyndata/simple-meta-simulator.git#1.1.1"
 ```
 
 Or via **Window > Package Manager > + > Install package from git URL**:
 
 ```
-https://github.com/zyndata/simple-meta-simulator.git#1.1.0
+https://github.com/zyndata/simple-meta-simulator.git#1.1.1
 ```
 
-Pin to a tag (e.g. `#1.1.0`) rather than a branch — UPM caches by commit hash, so a moving branch makes updates unpredictable.
+Pin to a tag (e.g. `#1.1.1`) rather than a branch — UPM caches by commit hash, so a moving branch makes updates unpredictable.
 
 ## Usage
 

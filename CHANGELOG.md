@@ -2,6 +2,16 @@
 
 All notable changes to this package are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.1.1] - 2026-07-14
+
+### Fixed
+
+- Meta Building Blocks rig (`OVRComprehensiveInteractionRig`): all controller skins showed at once and the pressed-button animation did not play after updating to the Meta XR SDK 203 / XR Interaction Toolkit 3.3 package set. The updated rig activates its `OVRControllerVisualLeft`/`OVRControllerVisualRight` objects a few frames after the ISDK data sources resolve, so the one-shot model selection ran too early (pruning nothing, caching no animator) and never retried. Model selection now retries until every in-scene `OVRControllerHelper` has been pruned while active (bounded), leaving one controller model per hand and driving its animator.
+
+### Tested
+
+- Unity 6000.3.13f1 with Meta XR SDK Core / Interaction OVR / MR Utility Kit 203.0.0, XR Interaction Toolkit 3.3.2, XR Meta OpenXR 2.5.1, OpenXR Plugin 1.16.1, Input System 1.19.0, on the Autohand rig and the Meta Building Blocks (`OVRComprehensiveInteractionRig`) rig.
+
 ## [1.1.0] - 2026-07-10
 
 ### Added

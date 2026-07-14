@@ -16,9 +16,12 @@ namespace SMS
 	{
 		private const int SYNTHETIC_POSE_ORIGIN = 3;
 
+		private const int MODEL_SELECT_MAX_ATTEMPTS = 300;
+
 		private bool resolved;
 		private bool resolveFailed;
 		private bool modelsSelected;
+		private int modelSelectAttempts;
 
 		private Animator leftAnimator;
 		private Animator rightAnimator;
@@ -67,6 +70,7 @@ namespace SMS
 				resolved = false;
 				resolveFailed = false;
 				modelsSelected = false;
+				modelSelectAttempts = 0;
 				offsetsResolved = false;
 				leftSource = null;
 				rightSource = null;
@@ -100,8 +104,7 @@ namespace SMS
 
 			if (modelsSelected == false)
 			{
-				SelectSingleModels();
-				modelsSelected = true;
+				modelsSelected = SelectSingleModels();
 			}
 
 			if (leftSource != null)
@@ -238,16 +241,27 @@ namespace SMS
 			animator.SetFloat(animButton2Hash, input.SecondaryButton == true ? 1f : 0f);
 		}
 
-		private void SelectSingleModels ()
+		// Returns true once model selection is settled (either every in-scene helper has been
+		// pruned while active, or there is nothing to prune) so the caller can stop retrying.
+		// Returns false while helpers still exist but are not active yet - the OVRComprehensive
+		// interaction rig activates its OVRControllerVisualLeft/Right objects a few frames after
+		// the sources resolve, so pruning on the very first Apply frame would find nothing and
+		// leave every controller skin visible with no animator cached.
+		private bool SelectSingleModels ()
 		{
+			modelSelectAttempts++;
+
 			Type helperType = Type.GetType("OVRControllerHelper, Oculus.VR");
 
 			if (helperType == null)
 			{
-				return;
+				return true;
 			}
 
 			UnityEngine.Object[] helpers = UnityEngine.Object.FindObjectsByType(helperType, FindObjectsInactive.Include, FindObjectsSortMode.None);
+
+			int sceneHelpers = 0;
+			int processed = 0;
 
 			for (int i = 0; i < helpers.Length; i++)
 			{
@@ -258,13 +272,32 @@ namespace SMS
 					continue;
 				}
 
+				sceneHelpers++;
+
 				if (helper.gameObject.activeInHierarchy == false)
 				{
 					continue;
 				}
 
 				SelectSingleModel(helperType, helper);
+				processed++;
 			}
+
+			if (sceneHelpers == 0)
+			{
+				// This rig has no controller helper to manage; nothing to retry for.
+				return true;
+			}
+
+			if (processed >= sceneHelpers)
+			{
+				return true;
+			}
+
+			// Some helper visuals are not active yet. Retry next frame, but give up after a
+			// bounded number of attempts so a rig that keeps a controller visual permanently
+			// inactive does not scan the scene every frame forever.
+			return modelSelectAttempts >= MODEL_SELECT_MAX_ATTEMPTS;
 		}
 
 		private void SelectSingleModel (Type helperType, Component helper)
