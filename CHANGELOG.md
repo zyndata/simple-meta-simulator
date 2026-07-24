@@ -2,6 +2,13 @@
 
 All notable changes to this package are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.2.0] - 2026-07-24
+
+### Added
+
+- Hand/controller rotation in the single-hand move targets. When the active target is **Left** or **Right** (Tab-cycled), hold the **middle mouse button** and move the mouse to rotate that hand/controller (yaw / pitch). The gate is a remappable `RotateModifier` input action (default `<Mouse>/middleButton`); rotation follows the same mouse delta as head look, with its own speed and pitch-invert settings.
+- **Hand Rotate Sensitivity** and **Invert Hand Rotate Y** settings (settings window, *Hands* section; defaults `0.15` / off) controlling the hand-rotation speed and pitch direction independently of the head-look settings.
+
 ## [1.1.1] - 2026-07-14
 
 ### Fixed

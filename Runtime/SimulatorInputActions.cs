@@ -19,6 +19,7 @@ namespace SMS
 		private InputAction verticalAction;
 		private InputAction lookDeltaAction;
 		private InputAction lookModifierAction;
+		private InputAction rotateModifierAction;
 		private InputAction cycleAction;
 		private InputAction leftGrabAction;
 		private InputAction leftGripAction;
@@ -71,6 +72,11 @@ namespace SMS
 		public bool LookModifier ()
 		{
 			return lookModifierAction != null && lookModifierAction.IsPressed();
+		}
+
+		public bool RotateModifier ()
+		{
+			return rotateModifierAction != null && rotateModifierAction.IsPressed();
 		}
 
 		public bool CyclePressed ()
@@ -131,6 +137,7 @@ namespace SMS
 			verticalAction = map.FindAction("Vertical", false);
 			lookDeltaAction = map.FindAction("LookDelta", false);
 			lookModifierAction = map.FindAction("LookModifier", false);
+			rotateModifierAction = map.FindAction("RotateModifier", false);
 			cycleAction = map.FindAction("Cycle", false);
 			leftGrabAction = map.FindAction("LeftGrab", false);
 			leftGripAction = map.FindAction("LeftGrip", false);
@@ -161,6 +168,7 @@ namespace SMS
 
 			map.AddAction("LookDelta", InputActionType.Value, "<Mouse>/delta");
 			map.AddAction("LookModifier", InputActionType.Button, "<Mouse>/rightButton");
+			map.AddAction("RotateModifier", InputActionType.Button, "<Mouse>/middleButton");
 
 			map.AddAction("Cycle", InputActionType.Button, "<Keyboard>/tab");
 

@@ -43,6 +43,15 @@
                     "initialStateCheck": false
                 },
                 {
+                    "name": "RotateModifier",
+                    "type": "Button",
+                    "id": "c1000001-0000-4000-8000-000000000001",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
                     "name": "Cycle",
                     "type": "Button",
                     "id": "e3b16848-f7a9-4097-b327-8a2e9d0ec57b",
@@ -232,6 +241,17 @@
                     "processors": "",
                     "groups": "",
                     "action": "LookModifier",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "c1000002-0000-4000-8000-000000000001",
+                    "path": "<Mouse>/middleButton",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "RotateModifier",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },

@@ -42,6 +42,9 @@ namespace SMS
 		private Vector3 rightHandBaseOffset;
 		private float headYaw;
 
+		private Vector2 leftHandEuler;
+		private Vector2 rightHandEuler;
+
 		private bool leftGrabHeld;
 		private bool leftGripHeld;
 		private bool rightGrabHeld;
@@ -152,6 +155,8 @@ namespace SMS
 			state.ResetToDefault(config.StartingEyeHeight);
 			headEuler = Vector2.zero;
 			headYaw = 0f;
+			leftHandEuler = Vector2.zero;
+			rightHandEuler = Vector2.zero;
 			leftHandPos = state.LeftHandLocalPosition;
 			rightHandPos = state.RightHandLocalPosition;
 			leftHandBaseOffset = state.LeftHandLocalPosition - state.HeadLocalPosition;
@@ -194,6 +199,7 @@ namespace SMS
 			UpdateHeadLook(deltaTime);
 			UpdateActiveTarget();
 			UpdateMovement(deltaTime);
+			UpdateHandRotation();
 			UpdateHandInput();
 		}
 
@@ -294,6 +300,36 @@ namespace SMS
 			return ActiveMoveTarget.Both;
 		}
 
+		private void UpdateHandRotation ()
+		{
+			// Only the single-hand targets can be rotated, and only while the rotate modifier
+			// (middle mouse by default) is held. In Both/Head the hands follow the head yaw.
+			if (ResolveMoveTarget() != ActiveMoveTarget.Left && ResolveMoveTarget() != ActiveMoveTarget.Right)
+			{
+				return;
+			}
+
+			if (actions.RotateModifier() == false)
+			{
+				return;
+			}
+
+			Vector2 delta = actions.LookDelta() * config.HandRotateSensitivity;
+			float pitchStep = config.InvertHandRotateY == true ? delta.y : -delta.y;
+
+			if (ResolveMoveTarget() == ActiveMoveTarget.Left)
+			{
+				leftHandEuler.x += delta.x;
+				leftHandEuler.y += pitchStep;
+				state.LeftHandLocalRotation = Quaternion.Euler(leftHandEuler.y, leftHandEuler.x, 0f);
+				return;
+			}
+
+			rightHandEuler.x += delta.x;
+			rightHandEuler.y += pitchStep;
+			state.RightHandLocalRotation = Quaternion.Euler(rightHandEuler.y, rightHandEuler.x, 0f);
+		}
+
 		private void UpdateHandPose ()
 		{
 			if (ResolveMoveTarget() == ActiveMoveTarget.Both)
@@ -305,6 +341,10 @@ namespace SMS
 				state.RightHandLocalRotation = yaw;
 				leftHandPos = state.LeftHandLocalPosition;
 				rightHandPos = state.RightHandLocalPosition;
+				// Keep the per-hand rotation state in sync with the head yaw so switching to a
+				// single-hand target and rotating continues smoothly instead of snapping.
+				leftHandEuler = new Vector2(headYaw, 0f);
+				rightHandEuler = new Vector2(headYaw, 0f);
 				return;
 			}
 

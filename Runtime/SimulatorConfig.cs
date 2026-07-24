@@ -37,6 +37,12 @@ namespace SMS
 		private HandActivationMode handActivationMode = HandActivationMode.CycleKey;
 
 		[SerializeField]
+		private float handRotateSensitivity = 0.15f;
+
+		[SerializeField]
+		private bool invertHandRotateY = false;
+
+		[SerializeField]
 		private ButtonInputMode faceButtonInputMode = ButtonInputMode.Held;
 
 		[SerializeField]
@@ -62,6 +68,8 @@ namespace SMS
 		public float LookSensitivity { get => lookSensitivity; set => lookSensitivity = value; }
 		public bool InvertLookY { get => invertLookY; set => invertLookY = value; }
 		public HandActivationMode HandActivationMode { get => handActivationMode; set => handActivationMode = value; }
+		public float HandRotateSensitivity { get => handRotateSensitivity; set => handRotateSensitivity = value; }
+		public bool InvertHandRotateY { get => invertHandRotateY; set => invertHandRotateY = value; }
 		public ButtonInputMode FaceButtonInputMode { get => faceButtonInputMode; set => faceButtonInputMode = value; }
 		public ButtonInputMode GrabGripInputMode { get => grabGripInputMode; set => grabGripInputMode = value; }
 		public bool RaiseHmdMountedEvents { get => raiseHmdMountedEvents; set => raiseHmdMountedEvents = value; }

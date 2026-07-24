@@ -36,16 +36,16 @@ Verified on both the Autohand rig and the Meta Building Blocks rig (`OVRComprehe
 Add the package to the target project's `Packages/manifest.json`, pinned to a tag:
 
 ```json
-"dev.gorny.sms": "https://github.com/zyndata/simple-meta-simulator.git#1.1.1"
+"dev.gorny.sms": "https://github.com/zyndata/simple-meta-simulator.git#1.2.0"
 ```
 
 Or via **Window > Package Manager > + > Install package from git URL**:
 
 ```
-https://github.com/zyndata/simple-meta-simulator.git#1.1.1
+https://github.com/zyndata/simple-meta-simulator.git#1.2.0
 ```
 
-Pin to a tag (e.g. `#1.1.1`) rather than a branch — UPM caches by commit hash, so a moving branch makes updates unpredictable.
+Pin to a tag (e.g. `#1.2.0`) rather than a branch — UPM caches by commit hash, so a moving branch makes updates unpredictable.
 
 ## Usage
 
@@ -72,6 +72,7 @@ All keys below are the out-of-the-box defaults. They live in an `InputActionAsse
 | Input | Action |
 | --- | --- |
 | Hold **Right Mouse** + move mouse | Look around (yaw / pitch) |
+| Hold **Middle Mouse** + move mouse | Rotate the active hand (Left / Right target only) |
 | **W / A / S / D** | Move the active target forward / left / back / right (relative to head yaw) |
 | **Q / E** | Move the active target down / up |
 
@@ -81,7 +82,7 @@ Movement is routed to the **active move target**. The default hand mode is *Cycl
 
 - **Both** (default): head and both hands move together; hands stay locked in front of the head.
 - **Head**: only the head moves; hands stay where they are.
-- **Left** / **Right**: only that hand moves.
+- **Left** / **Right**: only that hand moves. Hold the **middle mouse button** and move the mouse to rotate that hand/controller (yaw / pitch). Rotation speed and pitch direction are set by *Hand Rotate Sensitivity* and *Invert Hand Rotate Y* in the settings window (*Hands* section).
 
 ### Hands (controller buttons)
 

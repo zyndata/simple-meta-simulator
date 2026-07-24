@@ -19,10 +19,10 @@ namespace SMS.Editor
 		private Vector2 scroll;
 		private OVREventInvoker eventInvoker;
 
-		private bool movementFoldout = true;
-		private bool lookFoldout = true;
-		private bool handsFoldout = true;
-		private bool eventsFoldout = true;
+		private bool movementFoldout = false;
+		private bool lookFoldout = false;
+		private bool handsFoldout = false;
+		private bool eventsFoldout = false;
 
 		public static void Open ()
 		{
@@ -95,7 +95,7 @@ namespace SMS.Editor
 
 		private void DrawHands (SimulatorConfig config)
 		{
-			EditorGUILayout.HelpBox("Press Tab to cycle the movement target: Both -> Left hand -> Right hand -> Head. WASD/QE moves the active target, mouse + right button looks around.", MessageType.None);
+			EditorGUILayout.HelpBox("Press Tab to cycle the movement target: Both -> Left hand -> Right hand -> Head. WASD/QE moves the active target, mouse + right button looks around. In the Left or Right target, hold the middle mouse button and move the mouse to rotate that hand/controller.", MessageType.None);
 
 			if (Application.isPlaying == true && InEditorXRSimulator.Active != null)
 			{
@@ -107,6 +107,8 @@ namespace SMS.Editor
 
 			if (handsFoldout == true)
 			{
+				config.HandRotateSensitivity = EditorGUILayout.FloatField("Hand Rotate Sensitivity", config.HandRotateSensitivity);
+				config.InvertHandRotateY = EditorGUILayout.Toggle("Invert Hand Rotate Y", config.InvertHandRotateY);
 				config.GrabGripInputMode = (ButtonInputMode)EditorGUILayout.EnumPopup("Grab/Grip Mode", config.GrabGripInputMode);
 				config.FaceButtonInputMode = (ButtonInputMode)EditorGUILayout.EnumPopup("Face Button Mode", config.FaceButtonInputMode);
 				EditorGUILayout.HelpBox("Held: the input is active only while its key is held. Toggle: each key press latches it until pressed again. Grab/Grip covers the index and hand triggers; Face Button covers X/Y/A/B.", MessageType.None);
@@ -143,17 +145,21 @@ namespace SMS.Editor
 
 		private void DrawInvokeRow (string labelA, string eventA, string labelB, string eventB)
 		{
-			using (new EditorGUILayout.HorizontalScope())
-			{
-				if (GUILayout.Button(labelA) == true)
-				{
-					Invoke(eventA);
-				}
+			const float SPACING = 4f;
 
-				if (GUILayout.Button(labelB) == true)
-				{
-					Invoke(eventB);
-				}
+			Rect row = EditorGUILayout.GetControlRect(false, EditorGUIUtility.singleLineHeight + 4f);
+			float half = (row.width - SPACING) * 0.5f;
+			Rect left = new Rect(row.x, row.y, half, row.height);
+			Rect right = new Rect(row.x + half + SPACING, row.y, half, row.height);
+
+			if (GUI.Button(left, labelA) == true)
+			{
+				Invoke(eventA);
+			}
+
+			if (GUI.Button(right, labelB) == true)
+			{
+				Invoke(eventB);
 			}
 		}
 
