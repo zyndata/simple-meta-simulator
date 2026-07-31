@@ -6,7 +6,8 @@ using UnityEngine.InputSystem;
 namespace SMS.Editor
 {
 	/// <summary>
-	/// Settings window for the Simple Meta Simulator, opened from the toolbar status button.
+	/// Settings window for the Simple Meta Simulator, opened from the toolbar status button or from
+	/// the Tools/SMS/Open Settings menu.
 	/// Exposes the enable toggle, movement / look / hand tuning, the hand activation mode, and the
 	/// OVR event toggles. Uses plain IMGUI so the package carries no Odin dependency. The input
 	/// bindings button creates the controls asset on demand, then opens it for editing.
@@ -14,6 +15,7 @@ namespace SMS.Editor
 	public class SimulatorSettingsWindow : EditorWindow
 	{
 		private const string WINDOW_TITLE = "Simple Meta Simulator";
+		private const string MENU_PATH = "Tools/SMS/Open Settings";
 		private const float LABEL_WIDTH = 190f;
 
 		private Vector2 scroll;
@@ -24,6 +26,7 @@ namespace SMS.Editor
 		private bool handsFoldout = false;
 		private bool eventsFoldout = false;
 
+		[MenuItem(MENU_PATH, false, 0)]
 		public static void Open ()
 		{
 			SimulatorSettingsWindow window = GetWindow<SimulatorSettingsWindow>(false, WINDOW_TITLE, true);

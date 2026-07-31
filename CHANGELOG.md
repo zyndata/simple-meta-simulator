@@ -2,6 +2,22 @@
 
 All notable changes to this package are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.3.0] - 2026-07-31
+
+### Added
+
+- Unity 6.3 support for the toolbar status light. Unity 6.3 rejects elements injected into the main toolbar visual tree - it detects them, logs a warning and moves them into its "Unsupported User Elements" group, which is docked on the far left. On 6.3 and newer the light is now registered through the supported `MainToolbarElement` API and docks immediately right of the Play buttons; Unity 6.0-6.2 keep the previous injection path. The two implementations are selected at compile time by an asmdef `versionDefines` entry, so only one is ever built.
+- **Tools > SMS > Open Settings** menu item, opening the simulator settings window. This does not depend on the toolbar, so the settings stay reachable regardless of editor version or toolbar layout.
+
+### Fixed
+
+- Toolbar status light never appeared on Unity 6.1 and newer. It searched for the main toolbar as an `EditorWindow` named `UnityEditor.MainToolbarWindow`, but the main toolbar is the internal `UnityEditor.Toolbar` (a `GUIView`, not an `EditorWindow`), so the lookup always failed. It also targeted a container class that no longer exists. The light is now anchored to the Play controls themselves rather than to a named container, and its placement is re-validated so a toolbar rebuild cannot leave it orphaned.
+- Toolbar light on Unity 6.3 never changed state - it kept the icon it was first built with, staying green even when the simulator was disabled. Assigning the element's content does not repaint the docked overlay; the light now refreshes the element when its state changes.
+
+### Changed
+
+- The orange "real headset detected" light now appears **only in Play mode**, not while editing. `OVRPlugin` is not initialized outside Play mode, so `hmdPresent` / `userPresent` read false in the editor even with Quest Link running, and no other OVRPlugin signal carries live connection state (`GetSystemHeadsetType()` reports the last known headset even when Link is fully disconnected, which pinned the light orange in every state). The Play mode behaviour - the simulator yielding to a real headset - is unchanged; only the pre-Play warning described in 1.1.0 is not achievable and has been removed.
+
 ## [1.2.0] - 2026-07-24
 
 ### Added

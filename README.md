@@ -22,7 +22,7 @@ Verified on both the Autohand rig and the Meta Building Blocks rig (`OVRComprehe
 
 | Package | Version |
 | --- | --- |
-| Unity | 6000.3.13f1 |
+| Unity | 6000.3.13f1 and 6000.2.9f1 |
 | `com.meta.xr.sdk.core` | 203.0.0 |
 | `com.meta.xr.sdk.interaction.ovr` | 203.0.0 |
 | `com.meta.xr.mrutilitykit` | 203.0.0 |
@@ -36,32 +36,36 @@ Verified on both the Autohand rig and the Meta Building Blocks rig (`OVRComprehe
 Add the package to the target project's `Packages/manifest.json`, pinned to a tag:
 
 ```json
-"dev.gorny.sms": "https://github.com/zyndata/simple-meta-simulator.git#1.2.0"
+"dev.gorny.sms": "https://github.com/zyndata/simple-meta-simulator.git#1.3.0"
 ```
 
 Or via **Window > Package Manager > + > Install package from git URL**:
 
 ```
-https://github.com/zyndata/simple-meta-simulator.git#1.2.0
+https://github.com/zyndata/simple-meta-simulator.git#1.3.0
 ```
 
-Pin to a tag (e.g. `#1.2.0`) rather than a branch — UPM caches by commit hash, so a moving branch makes updates unpredictable.
+Pin to a tag (e.g. `#1.3.0`) rather than a branch — UPM caches by commit hash, so a moving branch makes updates unpredictable.
 
 ## Usage
 
 The simulator activates automatically in Play mode when no headset is present. Head and hand poses are driven from mouse and keyboard; controller button state is injected into `OVRInput` so ISDK grab interactions respond as they would on device.
 
-Settings are available under the simulator settings window, opened by clicking the status light the package adds to the main toolbar (next to the Play buttons):
+Settings are available under the simulator settings window, opened either from **Tools > SMS > Open Settings** or by clicking the status light the package adds to the main toolbar (next to the Play buttons):
 
 | Toolbar icon | Meaning |
 | --- | --- |
 | ⚫ Off | Simulator disabled. Play mode uses whatever runtime is available. |
 | 🟢 Green | Simulator enabled. Play mode starts the in-editor simulator. |
-| 🟠 Orange | Simulator enabled, **but a real headset is detected** (Quest Link connected or headset worn) - the simulator yields and the real device drives the rig. |
+| 🟠 Orange | *(Play mode only)* Simulator enabled, **but a real headset is detected** (Quest Link connected or headset worn) - the simulator yields and the real device drives the rig. |
+
+The light is registered through Unity's supported main toolbar API on Unity 6.3 and newer, and injected into the toolbar on 6.0-6.2. If it is missing or you would rather not rely on it, the settings window is always reachable from **Tools > SMS > Open Settings**.
 
 ### Quest Link
 
-When a headset is reachable - `OVRPlugin.hmdPresent` (connected through Quest Link, even sitting on the desk) or `OVRPlugin.userPresent` (worn) - the simulator does not start, so the real controllers and HMD keep control of the rig. No setting change is needed when switching between Link and simulated iteration; the toolbar light turns orange to show the simulator is being bypassed.
+When a headset is reachable - `OVRPlugin.hmdPresent` (connected through Quest Link, even sitting on the desk) or `OVRPlugin.userPresent` (worn) - the simulator does not start, so the real controllers and HMD keep control of the rig. No setting change is needed when switching between Link and simulated iteration.
+
+Note that this is only detectable **once Play mode starts**: `OVRPlugin` is not initialized while editing, so the toolbar light cannot warn about an active Link session in advance and stays green until you press Play, at which point it turns orange to show the simulator is being bypassed.
 
 ## Default controls
 
@@ -105,6 +109,7 @@ Grip (hand trigger) drives ISDK grab selection; the index trigger maps to the IS
 - **Simulator does not start in Play mode** — check the toolbar light: orange means a real headset/Quest Link session was detected and the simulator deliberately yielded (see the `[SMS]` log line); off means the *Enabled* toggle is off. Also verify the scene contains an `OVRCameraRig`.
 - **Simulator starts but nothing moves** — the rig is searched for repeatedly (every 0.5 s), so a rig spawned later is picked up automatically; if it never binds, confirm the rig really is an `OVRCameraRig` from `com.meta.xr.sdk.core`.
 - **Grab does not release** — grab/grip default to *Toggle*: tap the key again to release, or switch *Grab/Grip Mode* to *Held* in the settings window.
+- **No status light in the toolbar** — open the settings window from **Tools > SMS > Open Settings** instead. On Unity 6.3+ the light is a main toolbar element that can be hidden from the toolbar's right-click menu (look for *Simulator* under the SMS entry).
 
 ## License
 
