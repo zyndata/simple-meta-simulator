@@ -21,6 +21,7 @@ namespace SMS
 		private OVRInputStateInjector inputInjector;
 		private OVREventInvoker eventInvoker;
 		private ISDKControllerInjector isdkInjector;
+		private ISDKHandInjector isdkHandInjector;
 		private SimulatorInputActions actions;
 
 		private object cameraRig;
@@ -82,6 +83,7 @@ namespace SMS
 			inputInjector = new OVRInputStateInjector();
 			eventInvoker = new OVREventInvoker();
 			isdkInjector = new ISDKControllerInjector();
+			isdkHandInjector = new ISDKHandInjector();
 
 			TryBindRig();
 		}
@@ -165,6 +167,11 @@ namespace SMS
 			if (isdkInjector != null)
 			{
 				isdkInjector.Bind(state, trackingSpace, leftControllerAnchor, rightControllerAnchor);
+			}
+
+			if (isdkHandInjector != null && config.SimulateHands == true)
+			{
+				isdkHandInjector.Bind(state, trackingSpace, leftHandAnchor, rightHandAnchor);
 			}
 		}
 
@@ -411,6 +418,18 @@ namespace SMS
 				}
 
 				isdkInjector.Apply();
+			}
+
+			// Opt-in: valid hand data flips the rig's interactor branches from "Controller and No
+			// Hand" to "Controller and Hand", so it must never happen behind the user's back.
+			if (isdkHandInjector != null && config.SimulateHands == true)
+			{
+				if (isdkHandInjector.IsActive() == false)
+				{
+					isdkHandInjector.Bind(state, trackingSpace, leftHandAnchor, rightHandAnchor);
+				}
+
+				isdkHandInjector.Apply();
 			}
 		}
 

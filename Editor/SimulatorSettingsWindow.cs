@@ -115,6 +115,10 @@ namespace SMS.Editor
 				config.GrabGripInputMode = (ButtonInputMode)EditorGUILayout.EnumPopup("Grab/Grip Mode", config.GrabGripInputMode);
 				config.FaceButtonInputMode = (ButtonInputMode)EditorGUILayout.EnumPopup("Face Button Mode", config.FaceButtonInputMode);
 				EditorGUILayout.HelpBox("Held: the input is active only while its key is held. Toggle: each key press latches it until pressed again. Grab/Grip covers the index and hand triggers; Face Button covers X/Y/A/B.", MessageType.None);
+
+				EditorGUILayout.Space();
+				config.SimulateHands = EditorGUILayout.Toggle("Simulate Hands", config.SimulateHands);
+				EditorGUILayout.HelpBox("Feeds simulated hand tracking into the Meta Interaction SDK, so the hand interactors (hand grab, hand ray, hand poke, distance hand grab) come alive. On a comprehensive interaction rig this switches the live interactor branch from 'Controller and No Hand' to 'Controller and Hand', which is how the rig behaves in a real headset. Leave off for controller-only behaviour.", MessageType.None);
 			}
 
 			EditorGUILayout.Space();
