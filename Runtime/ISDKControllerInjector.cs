@@ -7,10 +7,12 @@ namespace SMS
 	/// <summary>
 	/// Feeds simulated controller poses into the Meta Interaction SDK (ISDK) controller data
 	/// pipeline. ISDK reads controller poses from a native source (OVRInput.GetLocalControllerPosition)
-	/// which returns zero without a headset, so the controller visuals sit at the origin. This hooks
-	/// each FromOVRControllerDataSource's InputDataAvailable event and overwrites the ControllerDataAsset
-	/// (RootPose, IsTracked, IsConnected) right after the source fills it, so visuals follow the
-	/// simulated hands. All access is reflection-based; no reference to Oculus.Interaction is needed.
+	/// which returns zero without a headset, so the controller visuals sit at the origin. Each frame it
+	/// overwrites every FromOVRControllerDataSource's ControllerDataAsset (RootPose, PointerPose,
+	/// IsTracked, IsConnected, Input) so pollers of IController see simulated data, and it drives the
+	/// ISDK transforms that ISDK itself would only move from native data (ControllerOffset grab points,
+	/// ControllerPointerPose ray/poke/distance-grab origins) directly.
+	/// All access is reflection-based; no reference to Oculus.Interaction is needed.
 	/// </summary>
 	public class ISDKControllerInjector
 	{
@@ -36,6 +38,8 @@ namespace SMS
 		private MethodInfo getDataMethod;
 		private FieldInfo rootPoseField;
 		private FieldInfo rootPoseOriginField;
+		private FieldInfo pointerPoseField;
+		private FieldInfo pointerPoseOriginField;
 		private FieldInfo isTrackedField;
 		private FieldInfo isConnectedField;
 		private FieldInfo isDataValidField;
@@ -61,6 +65,14 @@ namespace SMS
 		private FieldInfo offsetOffsetField;
 		private FieldInfo offsetRotationField;
 
+		private bool pointerPosesResolved;
+		private Component[] leftPointerPoses;
+		private Component[] rightPointerPoses;
+		private FieldInfo pointerPoseOffsetField;
+		private FieldInfo pointerPoseActiveField;
+
+		private static readonly object BOXED_TRUE = true;
+
 		public void Bind (SimulatedRigState rigState, Transform trackingSpaceTransform, Transform leftControllerAnchor, Transform rightControllerAnchor)
 		{
 			// A change of tracking space means the scene changed and the previously resolved
@@ -72,6 +84,9 @@ namespace SMS
 				modelsSelected = false;
 				modelSelectAttempts = 0;
 				offsetsResolved = false;
+				pointerPosesResolved = false;
+				leftPointerPoses = null;
+				rightPointerPoses = null;
 				leftSource = null;
 				rightSource = null;
 				poseFieldPosition = null;
@@ -122,7 +137,103 @@ namespace SMS
 			}
 
 			ApplyControllerOffsets();
+			ApplyPointerPoses();
 			DriveModelAnimators();
+		}
+
+		// ControllerPointerPose only writes its transform from inside IController.WhenUpdated, and that
+		// event fires from Controller.MarkInputDataRequiresUpdate - which dirties the data source first,
+		// so the TryGetPointerPose call inside the handler pulls a fresh UpdateData() straight from the
+		// native runtime and sees PointerPoseOrigin.None. Injecting into the data asset therefore never
+		// reaches that handler no matter when we write it, and the ray origin, poke location and
+		// distance-grab frustum stay frozen at the rig root. Drive their transforms directly instead,
+		// the same way ControllerOffset is handled.
+		private void ApplyPointerPoses ()
+		{
+			if (pointerPosesResolved == false)
+			{
+				ResolvePointerPoses();
+				pointerPosesResolved = true;
+			}
+
+			DrivePointerPoses(leftPointerPoses, leftAnchor);
+			DrivePointerPoses(rightPointerPoses, rightAnchor);
+		}
+
+		private void DrivePointerPoses (Component[] pointerPoses, Transform anchor)
+		{
+			if (pointerPoses == null || anchor == null)
+			{
+				return;
+			}
+
+			for (int i = 0; i < pointerPoses.Length; i++)
+			{
+				Component pointerPose = pointerPoses[i];
+
+				if (pointerPose == null || pointerPose.gameObject.activeInHierarchy == false)
+				{
+					continue;
+				}
+
+				Vector3 localOffset = Vector3.zero;
+
+				if (pointerPoseOffsetField != null)
+				{
+					localOffset = (Vector3)pointerPoseOffsetField.GetValue(pointerPose);
+				}
+
+				Vector3 worldPosition = anchor.position + anchor.rotation * localOffset;
+				pointerPose.transform.SetPositionAndRotation(worldPosition, anchor.rotation);
+
+				// The component's own handler leaves Active false because it never sees a valid pose;
+				// any IActiveState gate watching it would otherwise read the interactor as inactive.
+				if (pointerPoseActiveField != null)
+				{
+					pointerPoseActiveField.SetValue(pointerPose, BOXED_TRUE);
+				}
+			}
+		}
+
+		private void ResolvePointerPoses ()
+		{
+			Type pointerPoseType = Type.GetType("Oculus.Interaction.ControllerPointerPose, Oculus.Interaction");
+
+			if (pointerPoseType == null)
+			{
+				return;
+			}
+
+			BindingFlags all = (BindingFlags)(0x4 | 0x8 | 0x10 | 0x20);
+			pointerPoseOffsetField = pointerPoseType.GetField("_offset", all);
+			pointerPoseActiveField = pointerPoseType.GetField("<Active>k__BackingField", all);
+
+			UnityEngine.Object[] found = UnityEngine.Object.FindObjectsByType(pointerPoseType, FindObjectsInactive.Include, FindObjectsSortMode.None);
+
+			System.Collections.Generic.List<Component> left = new System.Collections.Generic.List<Component>();
+			System.Collections.Generic.List<Component> right = new System.Collections.Generic.List<Component>();
+
+			for (int i = 0; i < found.Length; i++)
+			{
+				Component component = found[i] as Component;
+
+				if (component == null || component.gameObject.scene.IsValid() == false)
+				{
+					continue;
+				}
+
+				if (ResolveIsLeft(component.transform) == true)
+				{
+					left.Add(component);
+				}
+				else
+				{
+					right.Add(component);
+				}
+			}
+
+			leftPointerPoses = left.ToArray();
+			rightPointerPoses = right.ToArray();
 		}
 
 		private void ApplyControllerOffsets ()
@@ -412,12 +523,25 @@ namespace SMS
 
 			if (rootPoseOriginField != null)
 			{
-				if (boxedPoseOrigin == null)
-				{
-					boxedPoseOrigin = Enum.ToObject(rootPoseOriginField.FieldType, SYNTHETIC_POSE_ORIGIN);
-				}
+				rootPoseOriginField.SetValue(asset, ResolveBoxedPoseOrigin(rootPoseOriginField));
+			}
 
-				rootPoseOriginField.SetValue(asset, boxedPoseOrigin);
+			// The pointer (aim) pose is what ControllerPointerPose reads, and that component sits on
+			// the ray interactor origin, the poke location and the distance-grab frustum/grab centre.
+			// FromOVRControllerDataSource leaves PointerPoseOrigin at None without the native runtime,
+			// so Controller.TryGetPointerPose fails and every one of those transforms stays frozen at
+			// the rig root - the interactors run but cast from the wrong place. Reuse the root pose:
+			// ControllerPointerPose applies its own prefab offset on top of it.
+			if (pointerPoseField != null)
+			{
+				object pointerPose = pointerPoseField.GetValue(asset);
+				pointerPose = SetPose(pointerPose, localPos, localRot);
+				pointerPoseField.SetValue(asset, pointerPose);
+			}
+
+			if (pointerPoseOriginField != null)
+			{
+				pointerPoseOriginField.SetValue(asset, ResolveBoxedPoseOrigin(pointerPoseOriginField));
 			}
 
 			if (isTrackedField != null)
@@ -522,6 +646,16 @@ namespace SMS
 			inputField.SetValue(asset, input);
 		}
 
+		private object ResolveBoxedPoseOrigin (FieldInfo originField)
+		{
+			if (boxedPoseOrigin == null && originField != null)
+			{
+				boxedPoseOrigin = Enum.ToObject(originField.FieldType, SYNTHETIC_POSE_ORIGIN);
+			}
+
+			return boxedPoseOrigin;
+		}
+
 		private object SetPose (object pose, Vector3 pos, Quaternion rot)
 		{
 			if (poseFieldPosition == null || poseFieldRotation == null)
@@ -610,6 +744,8 @@ namespace SMS
 			Type assetType = asset.GetType();
 			rootPoseField = assetType.GetField("RootPose");
 			rootPoseOriginField = assetType.GetField("RootPoseOrigin");
+			pointerPoseField = assetType.GetField("PointerPose");
+			pointerPoseOriginField = assetType.GetField("PointerPoseOrigin");
 			isTrackedField = assetType.GetField("IsTracked");
 			isConnectedField = assetType.GetField("IsConnected");
 			isDataValidField = assetType.GetField("IsDataValid");
