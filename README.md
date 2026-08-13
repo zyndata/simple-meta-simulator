@@ -1,6 +1,6 @@
 # Simple Meta Simulator (`dev.gorny.sms`)
 
-In-editor XR simulator for Meta OVR rigs. Drives the head and both hands with mouse and keyboard when no headset is connected, so scenes built on the Meta OVR / ISDK rig can be exercised entirely inside the Editor.
+In-editor XR simulator for Meta OVR rigs. Drives the head, both controllers and — optionally — simulated hand tracking with mouse and keyboard when no headset is connected, so scenes built on the Meta OVR / ISDK rig can be exercised entirely inside the Editor.
 
 Editor-only — the runtime assembly is gated behind `UNITY_EDITOR` and produces no build footprint.
 
@@ -23,6 +23,7 @@ Verified on both the Autohand rig and the Meta Building Blocks rig (`OVRComprehe
 | Package | Version |
 | --- | --- |
 | Unity | 6000.3.13f1 and 6000.2.9f1 |
+| `com.meta.xr.sdk.interaction` | 203.0.0 |
 | `com.meta.xr.sdk.core` | 203.0.0 |
 | `com.meta.xr.sdk.interaction.ovr` | 203.0.0 |
 | `com.meta.xr.mrutilitykit` | 203.0.0 |
@@ -36,16 +37,16 @@ Verified on both the Autohand rig and the Meta Building Blocks rig (`OVRComprehe
 Add the package to the target project's `Packages/manifest.json`, pinned to a tag:
 
 ```json
-"dev.gorny.sms": "https://github.com/zyndata/simple-meta-simulator.git#1.3.0"
+"dev.gorny.sms": "https://github.com/zyndata/simple-meta-simulator.git#1.4.0"
 ```
 
 Or via **Window > Package Manager > + > Install package from git URL**:
 
 ```
-https://github.com/zyndata/simple-meta-simulator.git#1.3.0
+https://github.com/zyndata/simple-meta-simulator.git#1.4.0
 ```
 
-Pin to a tag (e.g. `#1.3.0`) rather than a branch — UPM caches by commit hash, so a moving branch makes updates unpredictable.
+Pin to a tag (e.g. `#1.4.0`) rather than a branch — UPM caches by commit hash, so a moving branch makes updates unpredictable.
 
 ## Usage
 
@@ -104,11 +105,29 @@ Both button groups have a configurable input mode in the settings window (*Hands
 
 Grip (hand trigger) drives ISDK grab selection; the index trigger maps to the ISDK trigger/ray selector.
 
+### Hand tracking
+
+On a Meta Interaction SDK rig the simulator can also drive **hand tracking**, so the hand interactors (hand grab, hand ray, hand poke, distance hand grab, microgestures) run without a headset. Fingers curl procedurally from the same keys: the index trigger (**G** / **V**) bends the index finger and drives the pinch, the hand trigger (**F** / **C**) closes the rest.
+
+An interaction rig switches which set of interactors is live depending on what it is being fed, so this is a mode rather than a toggle — set **Hand Simulation** in the settings window (*Hands* section):
+
+| Mode | Live branch | What runs |
+| --- | --- | --- |
+| **Off** (default) | `Controller and No Hand` | Controllers only. |
+| **With Controllers** | `Controller and Hand` | Controllers held in tracked hands — what a real headset reports with controllers in hand. Needed for distance grab. |
+| **Hands Only** | `Hand and No Controller` | Controllers report as disconnected: hand ray, hand poke, hand grab, microgestures. |
+
+**Distance grab needs this.** On a comprehensive interaction rig the distance grab interactors live in the hand branches, so distance grab only works with *Hand Simulation* set to **With Controllers** or **Hands Only**. Aim matters as it does on device: a candidate has to be inside the head frustum, so look roughly at the object as well as pointing at it.
+
+Rigs without ISDK hand data sources are unaffected — the simulator detects their absence and stays inert.
+
 ## Troubleshooting
 
 - **Simulator does not start in Play mode** — check the toolbar light: orange means a real headset/Quest Link session was detected and the simulator deliberately yielded (see the `[SMS]` log line); off means the *Enabled* toggle is off. Also verify the scene contains an `OVRCameraRig`.
 - **Simulator starts but nothing moves** — the rig is searched for repeatedly (every 0.5 s), so a rig spawned later is picked up automatically; if it never binds, confirm the rig really is an `OVRCameraRig` from `com.meta.xr.sdk.core`.
 - **Grab does not release** — grab/grip default to *Toggle*: tap the key again to release, or switch *Grab/Grip Mode* to *Held* in the settings window.
+- **Distance grab finds nothing** — set *Hand Simulation* to **With Controllers** (or **Hands Only**); on a comprehensive interaction rig the distance grab interactors are in the hand branches. Then check that the head is looking at the target, not just the hand pointing at it.
+- **Hand interactors do nothing after turning hand simulation on** — the rig switches branch, so the interactor objects that were live before are now inactive and vice versa. That is the same switch a real headset makes; check the branch in the table above matches what you expect to test.
 - **No status light in the toolbar** — open the settings window from **Tools > SMS > Open Settings** instead. On Unity 6.3+ the light is a main toolbar element that can be hidden from the toolbar's right-click menu (look for *Simulator* under the SMS entry).
 
 ## License

@@ -2,6 +2,25 @@
 
 All notable changes to this package are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.4.0] - 2026-08-13
+
+### Added
+
+- **Simulated hand tracking** for Meta Interaction SDK rigs, driving the ISDK hand data pipeline from the simulated hand poses so the hand interactor branches run without a headset. Fingers curl procedurally off the rig's own rest skeleton: the index trigger bends the index finger and drives the pinch (thumb + index), the hand trigger closes the remaining fingers. The visible hand mesh follows the injected data, so hands open and close on screen.
+- **Hand Simulation** setting (settings window, *Hands* section) selecting which interactor branch is live on a rig that carries both controller and hand interactors:
+  - **Off** (default) - controllers only, `Controller and No Hand`. Byte-for-byte the previous behaviour.
+  - **With Controllers** - controllers held in tracked hands, `Controller and Hand`. This is what a real headset reports with controllers in hand, and what distance hand grab needs.
+  - **Hands Only** - the controllers report as disconnected, `Hand and No Controller`: hand ray, hand poke, hand grab and the microgesture interactors.
+- Simulated ISDK head pose. `FromOVRHmdDataSource` is as dead as the hand and controller sources without a headset, so everything that positions itself off the head sat at the rig root.
+
+### Fixed
+
+- **Distance grab never found a candidate.** A distance grab candidate has to fall inside the head frustum, and that frustum is placed by a `CenterEyeOffset` reading the ISDK HMD data source - which reported an untracked identity pose, leaving the frustum at the rig root pointing wherever the rig happened to face. With the head pose injected, distance hand grab hovers and selects normally. On a comprehensive interaction rig the distance grab interactors live in the hand branches, so this also needs *Hand Simulation* to be on.
+
+### Tested
+
+- Unity 6000.2.9f1 with Meta XR SDK Core / Interaction OVR / MR Utility Kit 203.0.0 on the Meta Building Blocks comprehensive interaction rig: distance hand grab hovers and selects a `DistanceHandGrabInteractable` and pulls it into the hand; hand poke selects a UI canvas; the hand ray hovers a canvas and selects it on pinch; with *Hand Simulation* off the controller ray still hovers the same canvas.
+
 ## [1.3.0] - 2026-07-31
 
 ### Added
