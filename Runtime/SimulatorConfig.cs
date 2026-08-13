@@ -49,7 +49,7 @@ namespace SMS
 		private ButtonInputMode grabGripInputMode = ButtonInputMode.Toggle;
 
 		[SerializeField]
-		private bool simulateHands = false;
+		private HandSimulationMode handSimulation = HandSimulationMode.Off;
 
 		[Header(SimulatorConstants.HEADER_EVENTS)]
 		[SerializeField]
@@ -75,7 +75,7 @@ namespace SMS
 		public bool InvertHandRotateY { get => invertHandRotateY; set => invertHandRotateY = value; }
 		public ButtonInputMode FaceButtonInputMode { get => faceButtonInputMode; set => faceButtonInputMode = value; }
 		public ButtonInputMode GrabGripInputMode { get => grabGripInputMode; set => grabGripInputMode = value; }
-		public bool SimulateHands { get => simulateHands; set => simulateHands = value; }
+		public HandSimulationMode HandSimulation { get => handSimulation; set => handSimulation = value; }
 		public bool RaiseHmdMountedEvents { get => raiseHmdMountedEvents; set => raiseHmdMountedEvents = value; }
 		public bool RaiseInputFocusEvents { get => raiseInputFocusEvents; set => raiseInputFocusEvents = value; }
 		public bool RaiseTrackingEvents { get => raiseTrackingEvents; set => raiseTrackingEvents = value; }

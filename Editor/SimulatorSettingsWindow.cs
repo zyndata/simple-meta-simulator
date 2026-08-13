@@ -117,8 +117,8 @@ namespace SMS.Editor
 				EditorGUILayout.HelpBox("Held: the input is active only while its key is held. Toggle: each key press latches it until pressed again. Grab/Grip covers the index and hand triggers; Face Button covers X/Y/A/B.", MessageType.None);
 
 				EditorGUILayout.Space();
-				config.SimulateHands = EditorGUILayout.Toggle("Simulate Hands", config.SimulateHands);
-				EditorGUILayout.HelpBox("Feeds simulated hand tracking into the Meta Interaction SDK, so the hand interactors (hand grab, hand ray, hand poke, distance hand grab) come alive. On a comprehensive interaction rig this switches the live interactor branch from 'Controller and No Hand' to 'Controller and Hand', which is how the rig behaves in a real headset. Leave off for controller-only behaviour.", MessageType.None);
+				config.HandSimulation = (HandSimulationMode)EditorGUILayout.EnumPopup("Hand Simulation", config.HandSimulation);
+				EditorGUILayout.HelpBox("Feeds simulated hand tracking into the Meta Interaction SDK, which decides on an interaction rig which interactor branch is live.\n\nOff: controllers only ('Controller and No Hand').\nWith Controllers: controllers held in tracked hands ('Controller and Hand') - this is what a real headset reports and what distance hand grab needs.\nHands Only: controllers reported as disconnected ('Hand and No Controller') - hand ray, hand poke and microgestures.\n\nGrab/grip keys drive the finger curl and the pinch in every mode that simulates hands.", MessageType.None);
 			}
 
 			EditorGUILayout.Space();

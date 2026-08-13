@@ -22,6 +22,7 @@ namespace SMS
 		private OVREventInvoker eventInvoker;
 		private ISDKControllerInjector isdkInjector;
 		private ISDKHandInjector isdkHandInjector;
+		private ISDKHmdInjector isdkHmdInjector;
 		private SimulatorInputActions actions;
 
 		private object cameraRig;
@@ -33,6 +34,7 @@ namespace SMS
 		private Transform rightControllerAnchor;
 
 		private bool eventsRaised;
+		private bool handsInjected;
 		private float nextBindScanTime;
 		private Vector2 headEuler;
 		private ActiveMoveTarget cycleTarget = ActiveMoveTarget.Both;
@@ -84,6 +86,7 @@ namespace SMS
 			eventInvoker = new OVREventInvoker();
 			isdkInjector = new ISDKControllerInjector();
 			isdkHandInjector = new ISDKHandInjector();
+			isdkHmdInjector = new ISDKHmdInjector();
 
 			TryBindRig();
 		}
@@ -169,9 +172,14 @@ namespace SMS
 				isdkInjector.Bind(state, trackingSpace, leftControllerAnchor, rightControllerAnchor);
 			}
 
-			if (isdkHandInjector != null && config.SimulateHands == true)
+			if (isdkHandInjector != null && config.HandSimulation != HandSimulationMode.Off)
 			{
 				isdkHandInjector.Bind(state, trackingSpace, leftHandAnchor, rightHandAnchor);
+			}
+
+			if (isdkHmdInjector != null)
+			{
+				isdkHmdInjector.Bind(trackingSpace, centerEyeAnchor);
 			}
 		}
 
@@ -410,6 +418,8 @@ namespace SMS
 			ApplyHand(leftHandAnchor, leftControllerAnchor, state.LeftHandLocalPosition, state.LeftHandLocalRotation);
 			ApplyHand(rightHandAnchor, rightControllerAnchor, state.RightHandLocalPosition, state.RightHandLocalRotation);
 
+			HandSimulationMode handMode = config.HandSimulation;
+
 			if (isdkInjector != null)
 			{
 				if (isdkInjector.IsActive() == false)
@@ -417,12 +427,31 @@ namespace SMS
 					isdkInjector.Bind(state, trackingSpace, leftControllerAnchor, rightControllerAnchor);
 				}
 
+				isdkInjector.SetReportConnected(handMode != HandSimulationMode.HandsOnly);
 				isdkInjector.Apply();
 			}
 
-			// Opt-in: valid hand data flips the rig's interactor branches from "Controller and No
-			// Hand" to "Controller and Hand", so it must never happen behind the user's back.
-			if (isdkHandInjector != null && config.SimulateHands == true)
+			// The ISDK head pose comes from its own data source, which is as dead as the hand and
+			// controller ones. Everything that positions itself off the head - including the frustum
+			// a distance grab candidate must fall inside - stays at the rig root without this.
+			if (isdkHmdInjector != null)
+			{
+				if (isdkHmdInjector.IsActive() == false)
+				{
+					isdkHmdInjector.Bind(trackingSpace, centerEyeAnchor);
+				}
+
+				isdkHmdInjector.Apply();
+			}
+
+			// Opt-in: valid hand data flips the rig's interactor branches away from "Controller and
+			// No Hand", so it must never happen behind the user's back.
+			if (isdkHandInjector == null)
+			{
+				return;
+			}
+
+			if (handMode != HandSimulationMode.Off)
 			{
 				if (isdkHandInjector.IsActive() == false)
 				{
@@ -430,6 +459,14 @@ namespace SMS
 				}
 
 				isdkHandInjector.Apply();
+				handsInjected = true;
+			}
+			else if (handsInjected == true)
+			{
+				// Switched off while running: hand data would otherwise freeze on its last valid
+				// values and keep the hand branches alive for the rest of the session.
+				isdkHandInjector.Release();
+				handsInjected = false;
 			}
 		}
 

@@ -72,6 +72,9 @@ namespace SMS
 		private FieldInfo pointerPoseActiveField;
 
 		private static readonly object BOXED_TRUE = true;
+		private static readonly object BOXED_FALSE = false;
+
+		private bool reportConnected = true;
 
 		public void Bind (SimulatedRigState rigState, Transform trackingSpaceTransform, Transform leftControllerAnchor, Transform rightControllerAnchor)
 		{
@@ -108,6 +111,15 @@ namespace SMS
 		public bool IsActive ()
 		{
 			return resolveFailed == false && (leftSource != null || rightSource != null);
+		}
+
+		// Whether the injected controllers report themselves as connected. ControllerRef.Active is
+		// Controller.IsConnected, which is IsDataValid && IsConnected on the injected asset, so
+		// clearing this is what makes a rig with both interactor sets switch to its hand-only
+		// branch (see HandSimulationMode.HandsOnly).
+		public void SetReportConnected (bool connected)
+		{
+			reportConnected = connected;
 		}
 
 		public void Apply ()
@@ -544,19 +556,21 @@ namespace SMS
 				pointerPoseOriginField.SetValue(asset, ResolveBoxedPoseOrigin(pointerPoseOriginField));
 			}
 
+			object connected = reportConnected == true ? BOXED_TRUE : BOXED_FALSE;
+
 			if (isTrackedField != null)
 			{
-				isTrackedField.SetValue(asset, true);
+				isTrackedField.SetValue(asset, connected);
 			}
 
 			if (isConnectedField != null)
 			{
-				isConnectedField.SetValue(asset, true);
+				isConnectedField.SetValue(asset, connected);
 			}
 
 			if (isDataValidField != null)
 			{
-				isDataValidField.SetValue(asset, true);
+				isDataValidField.SetValue(asset, connected);
 			}
 		}
 

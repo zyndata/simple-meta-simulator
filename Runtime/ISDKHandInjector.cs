@@ -116,6 +116,37 @@ namespace SMS
 			WriteHand(right, rightAnchor, state.RightInput);
 		}
 
+		// Stops reporting hand tracking and pushes one last cascade, so the rig's Hand branches go
+		// back off when hand simulation is switched off mid-session. Without it the sources would
+		// simply freeze on their last valid values and the branches would stay on forever.
+		public void Release ()
+		{
+			if (IsActive() == false)
+			{
+				return;
+			}
+
+			ReleaseHand(left);
+			ReleaseHand(right);
+		}
+
+		private void ReleaseHand (HandChannel channel)
+		{
+			if (channel == null || channel.Asset == null)
+			{
+				return;
+			}
+
+			isDataValidField.SetValue(channel.Asset, BOXED_FALSE);
+			isConnectedField.SetValue(channel.Asset, BOXED_FALSE);
+			isTrackedField.SetValue(channel.Asset, BOXED_FALSE);
+
+			// Force the joint arrays to be rewritten if simulation is turned back on.
+			channel.JointsWritten = false;
+
+			PushCascade(channel.Source);
+		}
+
 		private void WriteHand (HandChannel channel, Transform anchor, HandInputState input)
 		{
 			if (channel == null || channel.Asset == null)
