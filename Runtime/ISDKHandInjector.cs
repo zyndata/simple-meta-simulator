@@ -14,12 +14,29 @@ namespace SMS
 	/// Each frame this writes the source's HandDataAsset and then pushes the update cascade by hand -
 	/// bumping the data version and invoking InputDataAvailable while leaving the source marked
 	/// clean, so every downstream pull reads the injected asset instead of re-pulling native data.
-	/// All access is reflection-based; no reference to Oculus.Interaction is needed.
+	/// Fingers are curled procedurally off the rig's own rest skeleton from the simulated trigger
+	/// axes. All access is reflection-based; no reference to Oculus.Interaction is needed.
 	/// </summary>
 	public class ISDKHandInjector
 	{
 		private const int SYNTHETIC_POSE_ORIGIN = 3;
 		private const int JOINT_COUNT = 26;
+		private const int FINGER_COUNT = 5;
+		private const float JOINT_RADIUS = 0.008f;
+		private const float CURL_EPSILON = 0.001f;
+
+		// OpenXR hand joint indices (Oculus.Interaction.Input.HandJointId): palm 0, wrist 1,
+		// thumb 2-5, index 6-10, middle 11-15, ring 16-20, pinky 21-25, each finger running
+		// metacarpal -> proximal -> intermediate -> distal -> tip.
+		private static readonly int[] THUMB_JOINTS = { 2, 3, 4 };
+		private static readonly int[] INDEX_JOINTS = { 7, 8, 9 };
+		private static readonly int[] MIDDLE_JOINTS = { 12, 13, 14 };
+		private static readonly int[] RING_JOINTS = { 17, 18, 19 };
+		private static readonly int[] PINKY_JOINTS = { 22, 23, 24 };
+
+		// Degrees of flexion at full curl, per joint of a finger (proximal, intermediate, distal).
+		private static readonly float[] FINGER_CURL_ANGLES = { 60f, 80f, 55f };
+		private static readonly float[] THUMB_CURL_ANGLES = { 20f, 35f, 40f };
 
 		private static readonly object BOXED_TRUE = true;
 		private static readonly object BOXED_FALSE = false;
@@ -28,10 +45,8 @@ namespace SMS
 		private bool resolved;
 		private bool resolveFailed;
 
-		private object leftSource;
-		private object rightSource;
-		private object leftAsset;
-		private object rightAsset;
+		private HandChannel left;
+		private HandChannel right;
 
 		private FieldInfo assetField;
 		private FieldInfo requiresUpdateField;
@@ -56,13 +71,6 @@ namespace SMS
 		private FieldInfo configField;
 		private object boxedPoseOrigin;
 
-		private Pose[] leftRestLocal;
-		private Pose[] rightRestLocal;
-		private int[] leftParents;
-		private int[] rightParents;
-		private bool leftJointsWritten;
-		private bool rightJointsWritten;
-
 		private SimulatedRigState state;
 		private Transform isdkTrackingTransform;
 		private Transform leftAnchor;
@@ -77,14 +85,8 @@ namespace SMS
 			{
 				resolved = false;
 				resolveFailed = false;
-				leftSource = null;
-				rightSource = null;
-				leftAsset = null;
-				rightAsset = null;
-				leftRestLocal = null;
-				rightRestLocal = null;
-				leftJointsWritten = false;
-				rightJointsWritten = false;
+				left = null;
+				right = null;
 			}
 
 			state = rigState;
@@ -100,7 +102,7 @@ namespace SMS
 
 		public bool IsActive ()
 		{
-			return resolveFailed == false && (leftSource != null || rightSource != null);
+			return resolveFailed == false && (left != null || right != null);
 		}
 
 		public void Apply ()
@@ -110,27 +112,22 @@ namespace SMS
 				return;
 			}
 
-			if (leftSource != null)
-			{
-				leftJointsWritten = WriteHand(leftSource, leftAsset, leftAnchor, ref leftRestLocal, ref leftParents, leftJointsWritten);
-			}
-
-			if (rightSource != null)
-			{
-				rightJointsWritten = WriteHand(rightSource, rightAsset, rightAnchor, ref rightRestLocal, ref rightParents, rightJointsWritten);
-			}
+			WriteHand(left, leftAnchor, state.LeftInput);
+			WriteHand(right, rightAnchor, state.RightInput);
 		}
 
-		private bool WriteHand (object source, object asset, Transform anchor, ref Pose[] restLocal, ref int[] parents, bool jointsWritten)
+		private void WriteHand (HandChannel channel, Transform anchor, HandInputState input)
 		{
-			if (asset == null)
+			if (channel == null || channel.Asset == null)
 			{
-				return jointsWritten;
+				return;
 			}
 
-			if (restLocal == null)
+			object asset = channel.Asset;
+
+			if (channel.RestLocal == null)
 			{
-				ResolveRestPose(asset, ref restLocal, ref parents);
+				ResolveRestPose(channel);
 			}
 
 			Pose root = ResolveLocalPose(anchor);
@@ -145,23 +142,37 @@ namespace SMS
 			pointerPoseField.SetValue(asset, root);
 			pointerPoseOriginField.SetValue(asset, boxedPoseOrigin);
 
-			// The joint arrays only change when the pose changes, so they are written once and
-			// then left alone - nothing else touches them while the pipeline is frozen.
-			if (jointsWritten == false)
+			// The joint arrays only change when the curl changes, so they are rewritten on demand
+			// rather than every frame - nothing else touches them while the pipeline is frozen.
+			if (HasCurlChanged(channel, input) == true)
 			{
-				WriteJoints(asset, restLocal, parents);
-				jointsWritten = true;
+				WriteJoints(channel, input);
+				WriteFingerState(asset, input);
+				channel.LastIndexCurl = input.IndexTrigger;
+				channel.LastHandCurl = input.HandTrigger;
+				channel.JointsWritten = true;
 			}
 
-			PushCascade(source);
-			return jointsWritten;
+			PushCascade(channel.Source);
 		}
 
-		// Accumulates the skeleton's local-to-parent rest poses down the parent chain into the
-		// root-relative poses JointPoses expects (FromOVRHandDataSource writes Delta(Root, joint)),
-		// and fills the legacy local-rotation array alongside them.
-		private void WriteJoints (object asset, Pose[] restLocal, int[] parents)
+		private bool HasCurlChanged (HandChannel channel, HandInputState input)
 		{
+			if (channel.JointsWritten == false)
+			{
+				return true;
+			}
+
+			return Mathf.Abs(channel.LastIndexCurl - input.IndexTrigger) > CURL_EPSILON
+				|| Mathf.Abs(channel.LastHandCurl - input.HandTrigger) > CURL_EPSILON;
+		}
+
+		// Accumulates the skeleton's local-to-parent rest poses (plus the procedural curl) down the
+		// parent chain into the root-relative poses JointPoses expects - FromOVRHandDataSource
+		// writes Delta(Root, joint) there - and fills the legacy local-rotation array alongside them.
+		private void WriteJoints (HandChannel channel, HandInputState input)
+		{
+			object asset = channel.Asset;
 			Pose[] jointPoses = jointPosesField.GetValue(asset) as Pose[];
 			Quaternion[] joints = jointsField.GetValue(asset) as Quaternion[];
 			float[] radii = jointRadiiField.GetValue(asset) as float[];
@@ -171,9 +182,15 @@ namespace SMS
 				return;
 			}
 
+			Pose[] restLocal = channel.RestLocal;
+			int[] parents = channel.Parents;
+
+			BuildCurl(channel, input);
+
 			for (int i = 0; i < jointPoses.Length && i < restLocal.Length; i++)
 			{
 				int parent = parents[i];
+				Quaternion localRotation = restLocal[i].rotation * channel.Curl[i];
 
 				if (parent < 0 || parent >= i)
 				{
@@ -184,27 +201,87 @@ namespace SMS
 					Pose parentPose = jointPoses[parent];
 					jointPoses[i] = new Pose(
 						parentPose.position + parentPose.rotation * restLocal[i].position,
-						parentPose.rotation * restLocal[i].rotation);
+						parentPose.rotation * localRotation);
 				}
 
 				if (joints != null && i < joints.Length)
 				{
-					joints[i] = restLocal[i].rotation;
+					joints[i] = localRotation;
 				}
 
 				if (radii != null && i < radii.Length && radii[i] <= 0f)
 				{
-					radii[i] = 0.008f;
+					radii[i] = JOINT_RADIUS;
 				}
 			}
+		}
 
-			bool[] fingerConfidence = isFingerHighConfidenceField.GetValue(asset) as bool[];
-
-			if (fingerConfidence != null)
+		// Flexion curls the finger toward the palm. In the OpenXR hand skeleton every joint has
+		// its distal axis on +Z and its palmar axis on -Y (both hands), so bending the joint is a
+		// positive rotation about its own X axis.
+		private void BuildCurl (HandChannel channel, HandInputState input)
+		{
+			for (int i = 0; i < channel.Curl.Length; i++)
 			{
-				for (int i = 0; i < fingerConfidence.Length; i++)
+				channel.Curl[i] = Quaternion.identity;
+			}
+
+			ApplyCurl(channel, THUMB_JOINTS, THUMB_CURL_ANGLES, input.HandTrigger);
+			ApplyCurl(channel, INDEX_JOINTS, FINGER_CURL_ANGLES, input.IndexTrigger);
+			ApplyCurl(channel, MIDDLE_JOINTS, FINGER_CURL_ANGLES, input.HandTrigger);
+			ApplyCurl(channel, RING_JOINTS, FINGER_CURL_ANGLES, input.HandTrigger);
+			ApplyCurl(channel, PINKY_JOINTS, FINGER_CURL_ANGLES, input.HandTrigger);
+		}
+
+		private void ApplyCurl (HandChannel channel, int[] jointIds, float[] angles, float amount)
+		{
+			float curl = Mathf.Clamp01(amount);
+
+			if (curl <= 0f)
+			{
+				return;
+			}
+
+			for (int i = 0; i < jointIds.Length && i < angles.Length; i++)
+			{
+				int jointId = jointIds[i];
+
+				if (jointId < 0 || jointId >= channel.Curl.Length)
 				{
-					fingerConfidence[i] = true;
+					continue;
+				}
+
+				channel.Curl[jointId] = Quaternion.Euler(angles[i] * curl, 0f, 0f);
+			}
+		}
+
+		// Pinch is what the hand pinch selectors watch; drive it from the index trigger so the
+		// same key that grabs with a controller also pinches with a hand.
+		private void WriteFingerState (object asset, HandInputState input)
+		{
+			bool[] pinching = isFingerPinchingField.GetValue(asset) as bool[];
+			bool[] confidence = isFingerHighConfidenceField.GetValue(asset) as bool[];
+			float[] strength = fingerPinchStrengthField.GetValue(asset) as float[];
+			bool isPinching = input.IndexTrigger > 0.5f;
+
+			for (int i = 0; i < FINGER_COUNT; i++)
+			{
+				if (confidence != null && i < confidence.Length)
+				{
+					confidence[i] = true;
+				}
+
+				// Finger 0 is the thumb and finger 1 the index; a pinch is those two meeting.
+				bool isPinchFinger = i <= 1;
+
+				if (pinching != null && i < pinching.Length)
+				{
+					pinching[i] = isPinchFinger == true && isPinching == true;
+				}
+
+				if (strength != null && i < strength.Length)
+				{
+					strength[i] = isPinchFinger == true ? Mathf.Clamp01(input.IndexTrigger) : 0f;
 				}
 			}
 		}
@@ -239,15 +316,15 @@ namespace SMS
 
 		// The rest skeleton is read off the asset's own Config, which HandSkeletonOVR fills from
 		// baked OVRSkeletonData - so it needs no headset and adapts to whatever skeleton the rig uses.
-		private void ResolveRestPose (object asset, ref Pose[] restLocal, ref int[] parents)
+		private void ResolveRestPose (HandChannel channel)
 		{
-			restLocal = new Pose[JOINT_COUNT];
-			parents = new int[JOINT_COUNT];
+			channel.RestLocal = new Pose[JOINT_COUNT];
+			channel.Parents = new int[JOINT_COUNT];
 
 			for (int i = 0; i < JOINT_COUNT; i++)
 			{
-				restLocal[i] = Pose.identity;
-				parents[i] = -1;
+				channel.RestLocal[i] = Pose.identity;
+				channel.Parents[i] = -1;
 			}
 
 			if (configField == null)
@@ -255,7 +332,7 @@ namespace SMS
 				return;
 			}
 
-			object config = configField.GetValue(asset);
+			object config = configField.GetValue(channel.Asset);
 
 			if (config == null)
 			{
@@ -291,8 +368,8 @@ namespace SMS
 			for (int i = 0; i < JOINT_COUNT && i < joints.Length; i++)
 			{
 				object joint = joints.GetValue(i);
-				restLocal[i] = (Pose)poseField.GetValue(joint);
-				parents[i] = (int)parentField.GetValue(joint);
+				channel.RestLocal[i] = (Pose)poseField.GetValue(joint);
+				channel.Parents[i] = (int)parentField.GetValue(joint);
 			}
 		}
 
@@ -348,32 +425,47 @@ namespace SMS
 
 				if (handString == "Left")
 				{
-					leftSource = source;
-					leftAsset = assetField.GetValue(source);
+					left = CreateChannel(source);
 				}
 				else if (handString == "Right")
 				{
-					rightSource = source;
-					rightAsset = assetField.GetValue(source);
+					right = CreateChannel(source);
 				}
 			}
 
-			object probe = leftAsset != null ? leftAsset : rightAsset;
+			HandChannel probe = left != null ? left : right;
 
-			if (probe == null)
+			if (probe == null || probe.Asset == null)
 			{
 				// The sources exist but are not active yet; retry on the next bind.
 				resolved = false;
+				left = null;
+				right = null;
 				return;
 			}
 
-			CacheAssetFields(probe.GetType());
+			CacheAssetFields(probe.Asset.GetType());
 			ResolveTrackingTransform(all);
 
 			if (rootField == null || jointPosesField == null)
 			{
 				resolveFailed = true;
 			}
+		}
+
+		private HandChannel CreateChannel (object source)
+		{
+			HandChannel channel = new HandChannel();
+			channel.Source = source;
+			channel.Asset = assetField.GetValue(source);
+			channel.Curl = new Quaternion[JOINT_COUNT];
+
+			for (int i = 0; i < JOINT_COUNT; i++)
+			{
+				channel.Curl[i] = Quaternion.identity;
+			}
+
+			return channel;
 		}
 
 		private void CacheAssetFields (Type assetType)
@@ -433,6 +525,18 @@ namespace SMS
 					return;
 				}
 			}
+		}
+
+		private class HandChannel
+		{
+			public object Source;
+			public object Asset;
+			public Pose[] RestLocal;
+			public int[] Parents;
+			public Quaternion[] Curl;
+			public bool JointsWritten;
+			public float LastIndexCurl;
+			public float LastHandCurl;
 		}
 	}
 }
